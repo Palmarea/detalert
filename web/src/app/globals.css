@@ -56,6 +56,7 @@ aside{display:flex;flex-direction:column;min-height:0;background:var(--panel);bo
 .d-status{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .d-head .urgent-tag{font-size:13px}
 .tools{display:flex;gap:8px}
+.tools-link{align-self:center;white-space:nowrap}
 .tools input{flex:1;min-width:0;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted);cursor:pointer}

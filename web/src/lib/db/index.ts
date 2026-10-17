@@ -20,7 +20,8 @@ export const pool = () => (g.__pgPool ??= new Pool({ connectionString: connectio
    resolutions: una por caso, con quién, cuándo y la nota.
    notifications: cola de salida; el canal está por definir, así que todo queda en 'queued'.
    evidence: casos rechazados que el analista archivó como evidencia (categoría + indicadores + foto del caso)
-             para alimentar análisis de riesgo futuros (listas de bloqueo, reentrenar reglas). */
+             para alimentar análisis de riesgo futuros (listas de bloqueo, reentrenar reglas).
+   agent_learning: una sola fila (id = 1) con el último cuerpo de POST /api/agent-learning (propuestas de umbrales). */
 const SCHEMA = `
 create table if not exists events (
   seq            bigserial primary key,
@@ -69,6 +70,12 @@ create table if not exists evidence (
   at            timestamptz not null default now()
 );
 create index if not exists evidence_category_idx on evidence (category, at desc);
+
+create table if not exists agent_learning (
+  id         int primary key check (id = 1),
+  body       jsonb not null,
+  updated_at timestamptz not null default now()
+);
 
 -- Solo la zona de revisión (40 ≤ riesgo < 70) queda abierta; el resto lo califica el agente a su nombre.
 -- Idempotente; misma regla que THRESHOLDS, needsReview() y agentAction() en src/lib/payments/catalog.ts

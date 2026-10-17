@@ -120,6 +120,7 @@ export function Monitor({ user, initialId }: { user: { name: string; role: strin
           <SignalStrip counts={signals} active={sig} onPick={setSig} />
           <div className="tools">
             <input type="search" placeholder="Buscar por ID, cliente o comercio" aria-label="Buscar pendientes" onChange={(e) => setQuery(e.target.value)} />
+            <a className="nav-link tools-link" href="/umbrales.html">Umbrales y aprendizaje</a>
           </div>
         </div>
         {n > 0 && (
