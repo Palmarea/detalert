@@ -237,6 +237,13 @@ python -m aml.train_family && python -m aml.score_batch && python -m aml.cases &
 - **Reason codes:** top 3 contribuciones SHAP positivas, con texto en español (`aml/explain.py`).
 - **Export a Postgres:** 25.601 casos y 29.642 transacciones (66 MB, 8 s). **No incluye etiquetas reales.** Probado contra `aml_dev` local con los tests de contrato.
 
+#### Scoring en vivo (`POST /score/live`) — completado
+
+- **Predictor LightGBM en Python puro** (`aml/api/predictor.py`): coincide con LightGBM en 10⁻¹⁶ (7.921 filas, con NaN). Sin lightgbm, numpy ni scipy en Vercel. El modelo compacto (3,8 MB) vive en `aml.meta['live_model']`.
+- **Features en vivo** (`aml/api/live.py`): una consulta indexada sobre `aml.history` (1,56M transacciones desde el 1 de julio de 2023), más `aml.pairs_before` y `aml.accounts_before` para las features "desde siempre".
+- **Validación:** idéntico al batch en 400 transacciones de agosto (18 de 18 features, Δp ≤ 7e-16, familia 400 de 400).
+- **Carga:** `python -m aml.export_live`, o `--model-only` tras reentrenar. Supabase queda en 389 MB de 500.
+
 ### Fase 4 — Clasificador de familia (P1)
 
 Mapeo de las 17 tipologías sospechosas a 5 familias (validado en la fase 0; ver `config.py`):

@@ -9,8 +9,8 @@ from datetime import datetime
 from typing import Protocol
 
 from aml.api.schemas import (
-    AccountScore, AuditRecord, Band, CaseDetail, CaseList, FeedbackAck, FeedbackIn,
-    Mode, ModelMetrics, OperatingPoint, ScoreResponse, Thresholds,
+    AccountScore, AuditRecord, Band, CaseDetail, CaseList, FeedbackAck, FeedbackIn, LiveScore,
+    LiveTransaction, Mode, ModelMetrics, OperatingPoint, ScoreResponse, Thresholds,
 )
 
 BAND_ORDER = {Band.auto_close_eligible: 0, Band.review: 1, Band.high_priority: 2}
@@ -52,3 +52,4 @@ class Backend(Protocol):
     def metrics(self) -> ModelMetrics: ...
     def audit(self, txn_id: int) -> AuditRecord | None: ...
     def feedback(self, fb: FeedbackIn) -> FeedbackAck: ...
+    def score_live(self, txn: LiveTransaction, mode: Mode) -> LiveScore: ...

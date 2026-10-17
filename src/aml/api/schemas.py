@@ -10,6 +10,7 @@ Reglas del contrato:
 
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -63,7 +64,43 @@ class TxnScore(Versions):
 
 
 class ScoreRequest(BaseModel):
-    txn_ids: list[int] = Field(min_length=1, max_length=1000)
+    txn_ids: list[int] = Field(min_length=1, max_length=1000, examples=[[7227174, 7259972]])
+
+
+PaymentType = Literal["ACH", "Cash Deposit", "Cash Withdrawal", "Cheque", "Credit card", "Cross-border", "Debit card"]
+
+
+class LiveTransaction(BaseModel):
+    """Transacción nueva a puntuar en vivo. Las features se calculan con el historial
+    de ambas cuentas estrictamente anterior a `ts`."""
+    model_config = {"json_schema_extra": {"examples": [{
+        "ts": "2023-08-10T05:15:22Z", "sender_account": "6812204903", "receiver_account": "5440521221",
+        "amount": 6248.44, "payment_type": "Cross-border", "payment_currency": "UK pounds",
+        "received_currency": "Euro", "sender_bank_location": "UK", "receiver_bank_location": "France"}]}}
+
+    ts: datetime | None = Field(None, description="Momento de la transacción. Si se omite: justo después del "
+                                                   "final del historial (2023-08-23), como 'ahora' en la demo.")
+    sender_account: str
+    receiver_account: str
+    amount: float = Field(gt=0)
+    payment_type: PaymentType
+    payment_currency: str
+    received_currency: str
+    sender_bank_location: str | None = None
+    receiver_bank_location: str | None = None
+
+
+class LiveScore(Versions):
+    ts: datetime
+    p_laundering: float = Field(ge=0, le=1)
+    score_raw: float
+    band: Band
+    family: Family
+    family_confidence: float = Field(ge=0, le=1)
+    reason_codes: list[ReasonCode]
+    features: dict[str, float | int | str | None] = Field(
+        description="Features calculadas en vivo (trazabilidad: lo que vio el modelo)")
+    warnings: list[str] = []
 
 
 class ScoreResponse(BaseModel):

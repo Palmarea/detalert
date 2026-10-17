@@ -35,21 +35,66 @@
         "summary": "Score Transactions",
         "description": "Score calibrado, banda, familia y reason codes por transacción.",
         "operationId": "score_transactions_score_transactions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/score/live": {
+      "post": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Score Live",
+        "description": "Puntúa una transacción NUEVA en vivo: calcula sus features con el historial de ambas cuentas\n(estrictamente anterior a `ts`) y devuelve probabilidad, banda, familia y reason codes.",
+        "operationId": "score_live_score_live_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
-            "name": "x-api-key",
-            "in": "header",
+            "name": "mode",
+            "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
+              "$ref": "#/components/schemas/Mode",
+              "default": "normal"
             }
           }
         ],
@@ -58,7 +103,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ScoreRequest"
+                "$ref": "#/components/schemas/LiveTransaction"
               }
             }
           }
@@ -69,7 +114,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScoreResponse"
+                  "$ref": "#/components/schemas/LiveScore"
                 }
               }
             }
@@ -95,6 +140,11 @@
         "summary": "List Cases",
         "description": "Casos ordenados por prioridad. La banda depende del `mode` (capacidad de analistas).",
         "operationId": "list_cases_cases_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "mode",
@@ -159,22 +209,6 @@
               "default": 0,
               "title": "Offset"
             }
-          },
-          {
-            "name": "x-api-key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
           }
         ],
         "responses": {
@@ -208,6 +242,11 @@
         ],
         "summary": "Get Case",
         "operationId": "get_case_cases__case_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "case_id",
@@ -225,22 +264,6 @@
             "schema": {
               "$ref": "#/components/schemas/Mode",
               "default": "normal"
-            }
-          },
-          {
-            "name": "x-api-key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
             }
           }
         ],
@@ -275,6 +298,11 @@
         ],
         "summary": "Account Score",
         "operationId": "account_score_score_account__account__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "account",
@@ -303,22 +331,6 @@
               "type": "string",
               "format": "date-time",
               "title": "To"
-            }
-          },
-          {
-            "name": "x-api-key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
             }
           }
         ],
@@ -354,24 +366,6 @@
         "summary": "Thresholds",
         "description": "Puntos de operación (normal / capacidad reducida / sin analista) con su costo esperado.",
         "operationId": "thresholds_thresholds_get",
-        "parameters": [
-          {
-            "name": "x-api-key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -382,18 +376,13 @@
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/model/metrics": {
@@ -403,24 +392,6 @@
         ],
         "summary": "Metrics",
         "operationId": "metrics_model_metrics_get",
-        "parameters": [
-          {
-            "name": "x-api-key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -431,18 +402,13 @@
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/audit/{txn_id}": {
@@ -453,6 +419,11 @@
         "summary": "Audit",
         "description": "Registro completo: snapshot de features, score crudo y calibrado, versiones.",
         "operationId": "audit_audit__txn_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "txn_id",
@@ -461,22 +432,6 @@
             "schema": {
               "type": "integer",
               "title": "Txn Id"
-            }
-          },
-          {
-            "name": "x-api-key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
             }
           }
         ],
@@ -512,33 +467,15 @@
         "summary": "Feedback",
         "description": "Decisión del agente o del analista. Rechaza (422) si el agente intenta bajar la banda del modelo.",
         "operationId": "feedback_feedback_post",
-        "parameters": [
-          {
-            "name": "x-api-key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/FeedbackIn"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "201": {
@@ -561,7 +498,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     }
   },
@@ -1113,6 +1055,198 @@
         ],
         "title": "Health"
       },
+      "LiveScore": {
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "examples": [
+              "binary_v1"
+            ]
+          },
+          "threshold_version": {
+            "type": "string",
+            "title": "Threshold Version",
+            "examples": [
+              "thresholds_v1"
+            ]
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          },
+          "p_laundering": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "P Laundering"
+          },
+          "score_raw": {
+            "type": "number",
+            "title": "Score Raw"
+          },
+          "band": {
+            "$ref": "#/components/schemas/Band"
+          },
+          "family": {
+            "$ref": "#/components/schemas/Family"
+          },
+          "family_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Family Confidence"
+          },
+          "reason_codes": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonCode"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          },
+          "features": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Features",
+            "description": "Features calculadas en vivo (trazabilidad: lo que vio el modelo)"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version",
+          "threshold_version",
+          "ts",
+          "p_laundering",
+          "score_raw",
+          "band",
+          "family",
+          "family_confidence",
+          "reason_codes",
+          "features"
+        ],
+        "title": "LiveScore"
+      },
+      "LiveTransaction": {
+        "properties": {
+          "ts": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ts",
+            "description": "Momento de la transacción. Si se omite: justo después del final del historial (2023-08-23), como 'ahora' en la demo."
+          },
+          "sender_account": {
+            "type": "string",
+            "title": "Sender Account"
+          },
+          "receiver_account": {
+            "type": "string",
+            "title": "Receiver Account"
+          },
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount"
+          },
+          "payment_type": {
+            "type": "string",
+            "enum": [
+              "ACH",
+              "Cash Deposit",
+              "Cash Withdrawal",
+              "Cheque",
+              "Credit card",
+              "Cross-border",
+              "Debit card"
+            ],
+            "title": "Payment Type"
+          },
+          "payment_currency": {
+            "type": "string",
+            "title": "Payment Currency"
+          },
+          "received_currency": {
+            "type": "string",
+            "title": "Received Currency"
+          },
+          "sender_bank_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender Bank Location"
+          },
+          "receiver_bank_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Bank Location"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sender_account",
+          "receiver_account",
+          "amount",
+          "payment_type",
+          "payment_currency",
+          "received_currency"
+        ],
+        "title": "LiveTransaction",
+        "description": "Transacción nueva a puntuar en vivo. Las features se calculan con el historial\nde ambas cuentas estrictamente anterior a `ts`.",
+        "examples": [
+          {
+            "amount": 6248.44,
+            "payment_currency": "UK pounds",
+            "payment_type": "Cross-border",
+            "received_currency": "Euro",
+            "receiver_account": "5440521221",
+            "receiver_bank_location": "France",
+            "sender_account": "6812204903",
+            "sender_bank_location": "UK",
+            "ts": "2023-08-10T05:15:22Z"
+          }
+        ]
+      },
       "Mode": {
         "type": "string",
         "enum": [
@@ -1226,6 +1360,18 @@
             "title": "Expected Leakage",
             "description": "% de casos auto-cerrados que eran lavado"
           },
+          "missed_laundering_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missed Laundering Pct",
+            "description": "% de los casos de lavado que este modo auto-cierra (lo que se escapa)"
+          },
           "queue_cases_per_day": {
             "type": "number",
             "title": "Queue Cases Per Day"
@@ -1317,7 +1463,13 @@
             "type": "array",
             "maxItems": 1000,
             "minItems": 1,
-            "title": "Txn Ids"
+            "title": "Txn Ids",
+            "examples": [
+              [
+                7227174,
+                7259972
+              ]
+            ]
           }
         },
         "type": "object",
@@ -1501,6 +1653,14 @@
           "type"
         ],
         "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "description": "Key compartida del equipo. /health y /docs no la requieren.",
+        "in": "header",
+        "name": "X-API-Key"
       }
     }
   }

@@ -13,9 +13,11 @@ import psycopg
 from psycopg.rows import dict_row
 
 from aml.api.backend import band_for, check_agent_band, operating_point
+from aml.api.live import LiveScorer
+from aml.api.reasons import top_reasons
 from aml.api.schemas import (
     AccountScore, AuditRecord, Band, CaseDetail, CaseList, CaseSummary, FeedbackAck, FeedbackIn,
-    Mode, ModelMetrics, ScoreResponse, Thresholds, TxnScore,
+    LiveScore, LiveTransaction, Mode, ModelMetrics, ScoreResponse, Thresholds, TxnScore,
 )
 
 _CASE_COLS = """case_id, account, window_start, window_end, n_transactions, n_flagged,
@@ -31,9 +33,12 @@ class PostgresBackend:
     def __init__(self, dsn: str | None = None):
         self.dsn = dsn or os.environ["DATABASE_URL"]
         self._meta_cache: dict[str, tuple[float, dict]] = {}
+        self._live = LiveScorer(self._conn)
 
     def _conn(self):
-        return psycopg.connect(self.dsn, row_factory=dict_row, autocommit=True, connect_timeout=10)
+        # prepare_threshold=None: el transaction pooler (Supabase/Neon) no soporta prepared statements.
+        return psycopg.connect(self.dsn, row_factory=dict_row, autocommit=True, connect_timeout=10,
+                               prepare_threshold=None)
 
     def _meta(self, key: str) -> dict:
         hit = self._meta_cache.get(key)
@@ -152,4 +157,13 @@ class PostgresBackend:
                   fb.agent_band.value if fb.agent_band else None, fb.notes)).fetchone()
         return FeedbackAck(feedback_id=str(fid), received_at=r["received_at"])
 
-
+    def score_live(self, txn: LiveTransaction, mode: Mode) -> LiveScore:
+        out = self._live.score(txn.model_dump())
+        return LiveScore(
+            ts=out["ts"], p_laundering=out["p_laundering"], score_raw=out["score_raw"],
+            band=band_for(out["p_laundering"], operating_point(self.thresholds(), mode)),
+            family=out["family"], family_confidence=out["family_confidence"],
+            reason_codes=top_reasons(out["contributions"], out["features"]),
+            features=out["features"], warnings=out["warnings"],
+            model_version=out["model_version"], threshold_version=self.threshold_version,
+        )

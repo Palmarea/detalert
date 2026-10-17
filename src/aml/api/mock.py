@@ -185,3 +185,6 @@ class MockBackend:
         ack = FeedbackAck(feedback_id=str(uuid.uuid4()), received_at=datetime.now(timezone.utc))
         self._feedback.append(fb.model_dump() | ack.model_dump())
         return ack
+
+    def score_live(self, txn, mode):
+        raise NotImplementedError("El scoring en vivo necesita el historial real: usa AML_BACKEND=postgres")

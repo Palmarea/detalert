@@ -77,9 +77,11 @@ def main() -> None:
     case_rc = txns.groupby("case_id").reason_codes.apply(lambda s: top_case_reasons(list(s)))
     scored_at = datetime.now(timezone.utc)
 
-    with psycopg.connect(database_url()) as pg:
+    with psycopg.connect(database_url(), prepare_threshold=None) as pg:
         pg.execute(SCHEMA.read_text())
-        pg.execute("TRUNCATE aml.feedback, aml.txn_scores, aml.cases, aml.meta")
+        pg.execute("TRUNCATE aml.feedback, aml.txn_scores, aml.cases")
+        # Solo las claves propias: aml.meta también guarda el modelo en vivo (export_live).
+        pg.execute("DELETE FROM aml.meta WHERE key IN ('thresholds', 'metrics')")
         pg.execute("INSERT INTO aml.meta VALUES ('thresholds', %s), ('metrics', %s)",
                    (Jsonb(thresholds), Jsonb(metrics)))
         with pg.cursor().copy("COPY aml.cases FROM STDIN") as cp:
@@ -97,9 +99,8 @@ def main() -> None:
         pg.execute("ANALYZE aml.cases; ANALYZE aml.txn_scores")
         n_c = pg.execute("SELECT count(*) FROM aml.cases").fetchone()[0]
         n_t = pg.execute("SELECT count(*) FROM aml.txn_scores").fetchone()[0]
-        size = pg.execute("SELECT pg_size_pretty(sum(pg_total_relation_size(c.oid))) FROM pg_class c "
-                          "JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'aml'").fetchone()[0]
-    print(f"Exportado: {n_c:,} casos, {n_t:,} transacciones ({size}) en {time.time() - t0:.0f}s")
+        size = pg.execute("SELECT pg_size_pretty(pg_database_size(current_database()))").fetchone()[0]
+    print(f"Exportado: {n_c:,} casos, {n_t:,} transacciones (base total: {size}) en {time.time() - t0:.0f}s")
 
 
 if __name__ == "__main__":

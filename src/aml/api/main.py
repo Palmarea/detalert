@@ -9,17 +9,19 @@ Local:
     uvicorn aml.api.main:app --reload
 """
 
+import hmac
 import os
 from datetime import datetime, timezone
 from functools import lru_cache
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 
 from aml.api.backend import AgentCannotLowerBand, Backend
 from aml.api.schemas import (
-    AccountScore, AuditRecord, Band, CaseDetail, CaseList, FeedbackAck, FeedbackIn, Health, Mode,
-    ModelMetrics, ScoreRequest, ScoreResponse, Thresholds,
+    AccountScore, AuditRecord, Band, CaseDetail, CaseList, FeedbackAck, FeedbackIn, Health, LiveScore,
+    LiveTransaction, Mode, ModelMetrics, ScoreRequest, ScoreResponse, Thresholds,
 )
 
 
@@ -33,10 +35,14 @@ def get_backend() -> Backend:
     return MockBackend()
 
 
-def require_key(x_api_key: str | None = Header(None)) -> None:
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False,
+                              description="Key compartida del equipo. /health y /docs no la requieren.")
+
+
+def require_key(x_api_key: str | None = Security(api_key_header)) -> None:
     expected = os.getenv("AML_API_KEY")
-    if expected and x_api_key != expected:
-        raise HTTPException(401, "X-API-Key inválida o ausente")
+    if expected and not (x_api_key and hmac.compare_digest(x_api_key, expected)):
+        raise HTTPException(401, "X-API-Key inválida o ausente", headers={"WWW-Authenticate": "API-Key"})
 
 
 app = FastAPI(
@@ -61,6 +67,16 @@ def health(b: Backend = Depends(get_backend)):
 def score_transactions(req: ScoreRequest, b: Backend = Depends(get_backend)):
     """Score calibrado, banda, familia y reason codes por transacción."""
     return b.score(req.txn_ids)
+
+
+@app.post("/score/live", response_model=LiveScore, dependencies=protected, tags=["scoring"])
+def score_live(txn: LiveTransaction, mode: Mode = Mode.normal, b: Backend = Depends(get_backend)):
+    """Puntúa una transacción NUEVA en vivo: calcula sus features con el historial de ambas cuentas
+    (estrictamente anterior a `ts`) y devuelve probabilidad, banda, familia y reason codes."""
+    try:
+        return b.score_live(txn, mode)
+    except NotImplementedError as e:
+        raise HTTPException(501, str(e))
 
 
 @app.get("/cases", response_model=CaseList, dependencies=protected, tags=["casos"])

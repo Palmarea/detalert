@@ -110,3 +110,35 @@ def test_thresholds_and_metrics(client):
     assert {op["mode"] for op in th["operating_points"]} == {"normal", "reduced_capacity", "no_analyst"}
     m = client.get("/model/metrics").json()
     assert m["gini"] > m["baseline_gini"] and m["funnel"]
+
+
+LIVE_TXN = {"ts": "2023-08-10T05:15:22Z", "sender_account": "6812204903", "receiver_account": "5440521221",
+            "amount": 6248.44, "payment_type": "Cross-border", "payment_currency": "UK pounds",
+            "received_currency": "Euro", "sender_bank_location": "UK", "receiver_bank_location": "France"}
+
+
+def test_live_score(client):
+    r = client.post("/score/live", json=LIVE_TXN)
+    if os.getenv("AML_TEST_BACKEND", "mock") == "mock":
+        assert r.status_code == 501
+        return
+    assert r.status_code == 200
+    d = r.json()
+    # txn 9116407 (lavado real, Stacked Bipartite): el batch le dio p = 0.997308
+    assert abs(d["p_laundering"] - 0.997308) < 1e-5
+    assert d["band"] == "high_priority" and d["reason_codes"] and not d["warnings"]
+    assert d["features"]["is_new_counterparty"] in (0, 1)
+
+
+def test_live_score_validation(client):
+    bad = dict(LIVE_TXN, payment_type="Bitcoin")
+    assert client.post("/score/live", json=bad).status_code == 422
+    assert client.post("/score/live", json=dict(LIVE_TXN, amount=-5)).status_code == 422
+
+
+def test_live_score_unknown_accounts(client):
+    if os.getenv("AML_TEST_BACKEND", "mock") == "mock":
+        return
+    new = dict(LIVE_TXN, sender_account="cuenta-nueva-1", receiver_account="cuenta-nueva-2")
+    d = client.post("/score/live", json=new).json()
+    assert d["features"]["is_new_counterparty"] == 1 and d["features"]["s_hours_since_prev"] is None

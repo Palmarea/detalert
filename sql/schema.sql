@@ -59,3 +59,15 @@ CREATE TABLE IF NOT EXISTS aml.feedback (
     received_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS feedback_case ON aml.feedback (case_id);
+
+-- Defensa en profundidad (Supabase): el esquema aml no se expone por la API REST,
+-- pero igual se activa RLS sin políticas; solo el rol dueño (el que usa FastAPI) accede.
+ALTER TABLE aml.txn_scores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE aml.cases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE aml.meta ENABLE ROW LEVEL SECURITY;
+ALTER TABLE aml.feedback ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        REVOKE ALL ON SCHEMA aml FROM anon, authenticated;
+    END IF;
+END $$;
