@@ -43,8 +43,8 @@ def build_user_message(tx: dict, model_out: dict, tx_id: str) -> str:
 def review(tx: dict, model_out: dict, tx_id: str, client=None) -> dict:
     """Devuelve {'verdict': {...}, 'audit': [...], 'violations': [...], 'model': str}."""
     if client is None:
-        import anthropic
-        client = anthropic.Anthropic()          # usa ANTHROPIC_API_KEY del entorno
+        from .http_client import HttpClient
+        client = HttpClient()
 
     audit = [{"at": _now(), "actor": "Sistema", "action": f"Transacción {tx_id} recibida para revisión",
               "hash": _hash(tx)}]
