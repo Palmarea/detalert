@@ -1,13 +1,4 @@
-duckdb>=1.1
-pandas>=2.2
-pyarrow>=17
-lightgbm>=4.5
-scikit-learn>=1.5
-shap>=0.46
-matplotlib>=3.9
+# Dependencias de la API (lo único que instala Vercel). El stack de ML está en requirements-ml.txt.
 fastapi>=0.115
-uvicorn>=0.30
 pydantic>=2.8
-pytest>=8
-tabulate>=0.9
-optuna>=4.0
+psycopg[binary]>=3.2
