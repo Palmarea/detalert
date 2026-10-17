@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="es-PE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Umbrales · Monitor de pagos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Tokens de la bandeja (web/src/app/globals.css) */
+:root{
+  --bg:#f3f5f6; --panel:#ffffff; --sunk:#eaeef0; --line:#d9dfe2;
+  --fg:#16212a; --muted:#5b6872; --accent:#1f5f8b; --accent-soft:#e3eef6;
+  --ok:#1f7a4d; --ok-soft:#e1f3e9; --warn:#9a6400; --warn-soft:#fbf0d9;
+  --bad:#b3261e; --bad-soft:#fbe4e2; --info:#5b4bb3; --info-soft:#ebe8fa;
+  --font:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1519; --panel:#151d22; --sunk:#1b252b; --line:#27333a;
+  --fg:#e3e9ec; --muted:#93a1aa; --accent:#6fb3e0; --accent-soft:#17303f;
+  --ok:#5fcf94; --ok-soft:#14301f; --warn:#e7b04a; --warn-soft:#33270f;
+  --bad:#f1847c; --bad-soft:#3a1a18; --info:#a99cf0; --info-soft:#241f3d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --panel:#151d22; --sunk:#1b252b; --line:#27333a;
+  --fg:#e3e9ec; --muted:#93a1aa; --accent:#6fb3e0; --accent-soft:#17303f;
+  --ok:#5fcf94; --ok-soft:#14301f; --warn:#e7b04a; --warn-soft:#33270f;
+  --bad:#f1847c; --bad-soft:#3a1a18; --info:#a99cf0; --info-soft:#241f3d; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;overflow:hidden}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+::selection{background:color-mix(in srgb,var(--accent) 24%,transparent)}
+*{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+
+.app{display:grid;grid-template-columns:380px 1fr;height:100%}
+aside{display:flex;flex-direction:column;min-height:0;background:var(--panel);border-right:1px solid var(--line)}
+.side-head{padding:16px;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:4px}
+.brand h1{font-size:16px;font-weight:600;margin:0 auto 0 0;letter-spacing:-.01em}
+.nav-link{font-size:12px;font-weight:500;color:var(--accent);text-decoration:none;padding:4px 8px;border-radius:6px}
+.nav-link:hover{background:var(--accent-soft)}
+.nav-link[aria-current="page"]{background:var(--accent-soft)}
+.urgency{display:grid;grid-template-columns:repeat(4,auto);gap:2px;padding:3px;background:var(--sunk);border-radius:10px}
+.seg{display:flex;align-items:center;justify-content:center;gap:6px;border:0;background:transparent;border-radius:8px;padding:7px 6px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.seg:hover{color:var(--fg)}
+.seg b{min-width:20px;padding:0 6px;border-radius:999px;font-size:12px;font-weight:600;line-height:18px;background:color-mix(in srgb,var(--muted) 16%,transparent);color:var(--fg)}
+.seg[aria-pressed="true"]{background:var(--panel);color:var(--fg);box-shadow:0 1px 3px color-mix(in srgb,var(--fg) 16%,transparent)}
+
+.list{flex:1;overflow-y:auto;padding:8px 8px 16px;display:flex;flex-direction:column;gap:6px}
+.card{flex-shrink:0;display:grid;grid-template-columns:4px 1fr auto;gap:0 10px;text-align:left;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px 10px 0;cursor:pointer;overflow:hidden}
+.card:hover{background:var(--sunk)}
+.card[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.card .stripe{grid-row:1/4;border-radius:0 3px 3px 0}
+.card .t{font-weight:500;min-width:0}
+.card .time{font-size:12px;color:var(--muted);text-align:right;white-space:nowrap}
+.card .sub{grid-column:2/4;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.45}
+.card .meta{grid-column:2/4;display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.s-ok{color:var(--ok);background:var(--ok-soft)} .b-ok{background:var(--ok)}
+.s-warn{color:var(--warn);background:var(--warn-soft)} .b-warn{background:var(--warn)}
+.s-bad{color:var(--bad);background:var(--bad-soft)} .b-bad{background:var(--bad)}
+.s-info{color:var(--info);background:var(--info-soft)} .b-info{background:var(--info)}
+.tag{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.empty{padding:24px 12px;text-align:center;color:var(--muted);font-size:13px;margin:0}
+.busy .list,.busy .modes{pointer-events:none;opacity:.65;transition:opacity .2s}
+
+.side-foot{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);padding:10px 12px 10px 16px}
+.avatar{flex-shrink:0;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600}
+.who{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.35}
+.who b{font-weight:500}
+.who small{font-size:12px;color:var(--muted)}
+
+main{min-width:0;overflow-y:auto;padding:24px 32px 32px}
+.detail{max-width:980px;display:flex;flex-direction:column;gap:20px}
+.d-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:flex-end}
+.d-head .type{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.d-head h2{margin:4px 0 0;font-size:30px;font-weight:600;letter-spacing:-.02em}
+.modes{grid-template-columns:repeat(3,auto)}
+.section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.section h3{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.note{font-size:12px;color:var(--muted)}
+
+/* El espectro */
+.spec-wrap{padding:44px 0 6px;position:relative}
+.spectrum{position:relative;height:64px;border-radius:10px;overflow:hidden;display:flex;background:var(--sunk)}
+.zone{height:100%;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:0 12px;min-width:0;overflow:hidden;white-space:nowrap}
+.zone b{font-size:13px;font-weight:600}
+.zone span{font-size:12px;opacity:.85}
+.z-auto{background:var(--ok-soft);color:var(--ok);width:calc(var(--a) * 1%)}
+.z-rev{background:var(--warn-soft);color:var(--warn);flex:1}
+.z-high{background:var(--bad-soft);color:var(--bad);width:calc((100 - var(--h)) * 1%);text-align:right;align-items:flex-end}
+.handle{position:absolute;top:30px;height:118px;width:0;pointer-events:none}
+.handle::before{content:"";position:absolute;left:-1px;top:14px;bottom:0;width:2px;background:var(--fg);border-radius:1px}
+.handle .lbl{position:absolute;top:-6px;transform:translateX(-50%);font-family:var(--mono);font-size:12px;font-weight:500;background:var(--fg);color:var(--panel);padding:3px 8px;border-radius:6px;white-space:nowrap}
+.h-auto{left:calc(var(--a) * 1%)}
+.h-high{left:calc(var(--h) * 1%)}
+.h-high .lbl{transform:translateX(-85%)}
+.ghost{position:absolute;top:44px;height:64px;width:0;border-left:2px dashed var(--muted);opacity:0;transition:opacity .3s}
+.ghost.on{opacity:.9}
+.ghost.try{border-color:var(--bad)}
+.ghost small{position:absolute;bottom:6px;right:6px;font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap}
+.ghost.try small{color:var(--bad)}
+.ticks{position:relative;height:30px;margin-top:10px}
+.ticks i{position:absolute;top:4px;width:2px;height:18px;border-radius:1px;background:var(--bad);opacity:.75;transition:background .4s,opacity .4s}
+.ticks i.miss{background:var(--fg);opacity:1;height:22px;top:2px}
+.axis{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:2px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:12px;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:2px;height:12px;background:var(--bad);margin-right:6px;vertical-align:-2px;border-radius:1px}
+.legend i.miss{background:var(--fg)}
+.legend .dash{display:inline-block;width:0;height:12px;border-left:2px dashed var(--muted);margin-right:6px;vertical-align:-2px}
+
+.caption{display:flex;align-items:center;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);min-height:52px}
+.caption p{margin:0;flex:1;line-height:1.5}
+.caption p b{font-weight:600}
+.btn{height:36px;padding:0 14px;border-radius:8px;font-weight:600;white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:background .15s,border-color .15s}
+.btn-primary{border:0;background:var(--accent);color:var(--panel)}
+.btn-primary:hover{background:color-mix(in srgb,var(--accent) 86%,var(--fg))}
+.btn-primary:disabled{opacity:.7;cursor:progress}
+
+.cmp{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+.cmp th,.cmp td{padding:8px 0;border-top:1px solid var(--line);text-align:right}
+.cmp thead th{border-top:0;padding-top:0;font-family:var(--mono);font-size:12px;font-weight:500;color:var(--muted)}
+.cmp tbody th{text-align:left;font-weight:500}
+.cmp td{width:200px;font-weight:600}
+.cmp td.chg{color:var(--accent)}
+
+/* Propuesta seleccionada */
+.verdict{margin:0 0 12px;line-height:1.6}
+.verdict .pill{margin-right:8px;vertical-align:1px}
+.verdict b{font-weight:600}
+.ask{margin:0 0 4px;line-height:1.55}
+.ask code{font-family:var(--mono);font-size:13px;background:var(--sunk);padding:1px 6px;border-radius:5px}
+.section h4{margin:20px 0 8px;font-size:13px;font-weight:600}
+.guards{list-style:none;margin:0;padding:0}
+.guards li{display:grid;grid-template-columns:minmax(0,1fr) 150px 92px;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:13px}
+.guards li:first-child{border-top:0;padding-top:0}
+.guards.rules li{display:flex;flex-wrap:wrap;gap:2px 8px;line-height:1.5}
+.guards.rules b{font-weight:600}
+.guards.rules span{color:var(--muted)}
+.guards div{display:flex;flex-direction:column;gap:1px;min-width:0}
+.guards small{color:var(--muted);font-size:12px}
+.guards .delta{font-family:var(--mono);font-size:12px;text-align:right}
+.guards .pill{justify-self:end}
+.evidence{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.evidence li{display:grid;grid-template-columns:minmax(0,1.4fr) 80px minmax(0,1.3fr);gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.evidence li:first-child{border-top:0;padding-top:0}
+.evidence .band{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.evidence svg{color:var(--muted)}
+.timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.timeline li{display:grid;grid-template-columns:14px 1fr auto;gap:12px;padding-bottom:14px;position:relative}
+.timeline li:last-child{padding-bottom:0}
+.timeline li:not(:last-child)::before{content:"";position:absolute;left:6px;top:14px;bottom:0;width:2px;background:var(--line)}
+.timeline .tdot{width:14px;height:14px;border-radius:50%;border:3px solid var(--panel);margin-top:2px}
+.timeline span{line-height:1.45}
+.timeline small{color:var(--muted);font-size:12px;white-space:nowrap}
+
+
+.back{align-self:flex-start;margin-left:-8px}
+.fuente{display:inline-flex;margin-bottom:6px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (max-width:900px){
+  body{overflow:auto}
+  .app{display:flex;flex-direction:column;height:auto}
+  aside{border-right:0;border-bottom:1px solid var(--line)}
+  .list{flex-direction:row;overflow-x:auto;padding:8px 16px 12px;scroll-snap-type:x mandatory}
+  .list .card{width:300px;scroll-snap-align:start}
+  .side-foot{display:none}
+  main{overflow:visible;padding:20px 16px 32px}
+  .d-head h2{font-size:24px}
+  .modes{width:100%;grid-template-columns:repeat(3,1fr)}
+  .cmp td{width:auto;padding-left:12px}
+  .cmp thead th{font-size:11px}
+  .guards li{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}
+  .guards .delta{grid-column:1;text-align:left}
+  .guards .pill{grid-column:2;grid-row:1/3;align-self:center}
+  .evidence li{grid-template-columns:minmax(0,1fr) auto}
+  .evidence li .band{grid-column:1/-1}
+    .zone span{display:none}
+  .z-high b{display:none}
+  .side-head .urgency{grid-template-columns:repeat(2,1fr)}
+  .spec-wrap{padding-top:76px}
+  .handle{top:62px}
+  .h-high .lbl{top:-38px;transform:translateX(-100%)}
+  .h-auto .lbl{transform:translateX(-60%)}
+  .ghost{top:76px}
+  .axis span:nth-child(2){display:none}
+  .zone{padding:0 8px}
+  .caption{flex-direction:column;align-items:stretch}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="side-head">
+      <a class="nav-link back" href="/">← Volver a la bandeja</a>
+      <div class="brand">
+        <h1>Monitor de pagos</h1>
+        <a class="nav-link" href="/">Bandeja</a>
+        <a class="nav-link" href="/historial">Historial</a>
+        <a class="nav-link" href="#" aria-current="page">Umbrales</a>
+      </div>
+      <div class="urgency" role="group" aria-label="Filtrar propuestas">
+        <button class="seg" data-f="all" aria-pressed="true">Todas <b class="num" id="c-all">3</b></button>
+        <button class="seg" data-f="applied" aria-pressed="false">Aplicadas <b class="num" id="c-applied">1</b></button>
+        <button class="seg" data-f="rejected" aria-pressed="false">Rechazadas <b class="num" id="c-rejected">1</b></button>
+        <button class="seg" data-f="blocked" aria-pressed="false">Bloqueadas <b class="num" id="c-blocked">1</b></button>
+      </div>
+    </div>
+    <div class="list" id="list" role="list"></div>
+    <div class="side-foot">
+      <span class="avatar">DR</span>
+      <span class="who"><b>Diego Ramos</b><small>Supervisor de riesgo</small></span>
+    </div>
+  </aside>
+
+  <main>
+    <div class="detail">
+      <div class="d-head">
+        <div>
+          <span class="pill s-info fuente" id="fuente" aria-live="polite">Datos de ejemplo</span>
+          <div class="type" id="ver">thresholds_v1.1-agente · modo normal</div>
+          <h2>Espectro de umbrales</h2>
+        </div>
+        <div class="urgency modes" role="group" aria-label="Modo de operación">
+          <button class="seg" data-m="normal" aria-pressed="true">Normal</button>
+          <button class="seg" data-m="reduced" aria-pressed="false">Capacidad 50 %</button>
+          <button class="seg" data-m="none" aria-pressed="false">Sin analista</button>
+        </div>
+      </div>
+
+      <section class="section" aria-labelledby="t-spec">
+        <div class="sec-head">
+          <h3 id="t-spec">Casos alertados ordenados por score</h3>
+          <span class="note" id="spec-note">Propuestas de ejemplo; bandas base reales (OOT)</span>
+        </div>
+        <div class="spec-wrap" id="spec" style="--a:59.6;--h:93.6">
+          <div class="spectrum" aria-hidden="true">
+            <div class="zone z-auto"><b>Cierre automático</b><span class="num" id="z-auto">59,6 % de los casos</span></div>
+            <div class="zone z-rev"><b>Revisión</b><span class="num" id="z-rev">34,0 %</span></div>
+            <div class="zone z-high"><b class="num" id="z-high">6,4 %</b></div>
+          </div>
+          <div class="handle h-auto" aria-hidden="true"><span class="lbl num" id="l-auto">p &lt; 0,00190</span></div>
+          <div class="handle h-high" aria-hidden="true"><span class="lbl num" id="l-high">p ≥ 0,775</span></div>
+          <div class="ghost" id="ghost"><small id="ghost-l">antes</small></div>
+          <div class="ticks" id="ticks" aria-hidden="true"></div>
+          <div class="axis num" aria-hidden="true"><span>score más bajo</span><span>25.601 casos · 83 días OOT</span><span>prioridad alta · score más alto</span></div>
+        </div>
+        <div class="legend">
+          <span><i></i>caso con lavado (muestra)</span>
+          <span><i class="miss"></i>lavado que se cerraría solo</span>
+          <span><span class="dash"></span>posición anterior o intento rechazado</span>
+        </div>
+        <div id="stats"></div>
+        <div class="caption">
+          <p id="caption" aria-live="polite">El agente ya movió el umbral de cierre una vez. Reproduce cómo llegó aquí.</p>
+          <button class="btn btn-primary" id="replay">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11a.5.5 0 0 0 .77.42l8.5-5.5a.5.5 0 0 0 0-.84l-8.5-5.5A.5.5 0 0 0 4 2.5Z"/></svg>
+            Reproducir aprendizaje
+          </button>
+        </div>
+      </section>
+
+      <section class="section" id="prop" aria-labelledby="t-prop"></section>
+
+      <section class="section" aria-labelledby="t-rules">
+        <div class="sec-head"><h3 id="t-rules">Reglas de la compuerta</h3></div>
+        <ul class="guards rules">
+          <li><b>El agente solo puede endurecer.</b><span>Pide bajar un umbral, nunca subirlo: la misma regla de “la banda no baja”.</span></li>
+          <li><b>Toda propuesta se simula antes.</b><span>Sobre los 83 días OOT con etiqueta real, contra los tres límites.</span></li>
+          <li><b>Si rompe un límite, no se mueve.</b><span>Queda registrada con el motivo.</span></li>
+          <li><b>Subir un umbral lo decide el analista.</b><span>Con falsos positivos confirmados en la bandeja.</span></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+/* Bandas base reales (thresholds_v1, OOT): % de casos en cierre automático y en prioridad alta. */
+let BASE = {
+  normal:  { auto: 0.002355, high: 0.775,    a: 61.2, h: 93.6, label: "normal" },
+  reduced: { auto: 0.006996, high: 0.775,    a: 79.5, h: 93.6, label: "capacidad reducida" },
+  none:    { auto: 0.002355, high: 0.002355, a: 61.2, h: 61.2, label: "sin analista" },
+};
+const CAP = 130; // casos por día que absorbe el equipo en modo normal (ejemplo)
+
+/* Propuestas del agente (datos de ejemplo), en orden cronológico. Todas en modo normal. */
+let PROPS = [
+  {
+    id: "P-001", at: "17 oct · 20:55", status: "blocked",
+    title: "Subir el umbral de cierre a 0,00260",
+    sub: "9 casos en revisión marcados por el agente como falso positivo probable.",
+    ask: ["auto", 0.002355, 0.0026],
+    reason: "El agente no puede relajar umbrales. Se activa con 9 aprobaciones del analista (0 de 9).",
+    from: { a: 61.2, h: 93.6, auto: 0.002355, high: 0.775 }, to: null,
+    guards: null,
+    evidence: [
+      ["C-1285873873-2023-06-15", 0.0025, "review", "review", "Deposit-Send con monto habitual"],
+      ["C-7218608806-2023-07-14", 0.0026, "review", "review", "Sin firmas del negocio"],
+      ["C-990166612-2023-08-22",  0.0024, "review", "review", "Contraparte frecuente"],
+    ],
+    log: [
+      ["Agente decisor", "Marcó 9 casos de revisión como falso positivo probable", "20:51"],
+      ["Agente", "Propuso subir el cierre automático a 0,00260", "20:55"],
+      ["Compuerta", "Bloqueada: relajar requiere al analista", "20:55"],
+    ],
+  },
+  {
+    id: "P-002", at: "17 oct · 21:12", status: "applied",
+    title: "Bajar el umbral de cierre a 0,00190",
+    sub: "3 casos que el modelo cerraría solos fueron escalados por el agente con firma de pitufeo.",
+    ask: ["auto", 0.002355, 0.0019],
+    reason: "Pasa los tres límites. Nueva versión thresholds_v1.1-agente.",
+    from: { a: 61.2, h: 93.6, auto: 0.002355, high: 0.775 },
+    to:   { a: 59.6, h: 93.6, auto: 0.0019,   high: 0.775 },
+    guards: [
+      ["Lavado que se cierra solo", "límite ≤ 0,30 % de los casos con lavado", "0,18 % → 0,12 %", true],
+      ["Precisión de prioridad alta", "límite ≥ 95 %", "99,5 % → 99,5 %", true],
+      ["Cola del analista", `límite ≤ ${CAP} casos por día`, "119,2 → 122,4", true],
+    ],
+    evidence: [
+      ["C-3049253016-2023-06-09", 0.0021, "auto_close_eligible", "review", "F-structuring-1: depósitos repetidos bajo el límite"],
+      ["C-6324740324-2023-07-28", 0.0020, "auto_close_eligible", "review", "F-structuring-1 y emisor puente"],
+      ["C-8060333204-2023-06-13", 0.0022, "auto_close_eligible", "review", "s_amt_z_30d = 4,3"],
+    ],
+    log: [
+      ["Agente", "Escaló 3 casos de cierre a revisión (POST /feedback)", "21:04"],
+      ["Agente", "Propuso bajar el cierre automático a 0,00190", "21:12"],
+      ["Compuerta", "Simulación OOT: 3 de 3 límites cumplidos", "21:12"],
+      ["API de ML", "Publicó thresholds_v1.1-agente", "21:12"],
+    ],
+  },
+  {
+    id: "P-003", at: "17 oct · 21:40", status: "rejected",
+    title: "Bajar prioridad alta a 0,400",
+    sub: "El agente retuvo 5 casos que el modelo dejó en revisión.",
+    ask: ["high", 0.775, 0.4],
+    reason: "La precisión de prioridad alta caería a 91,2 % (límite 95 %). El espectro no se mueve.",
+    from: { a: 59.6, h: 93.6, auto: 0.0019, high: 0.775 },
+    to:   { a: 59.6, h: 88.9, auto: 0.0019, high: 0.4 },
+    guards: [
+      ["Lavado que se cierra solo", "límite ≤ 0,30 % de los casos con lavado", "0,12 % → 0,12 %", true],
+      ["Precisión de prioridad alta", "límite ≥ 95 %", "99,5 % → 91,2 %", false],
+      ["Cola del analista", `límite ≤ ${CAP} casos por día`, "122,4 → 122,4", true],
+    ],
+    evidence: [
+      ["C-1285873873-2023-06-15", 0.61, "review", "high_priority", "Deposit-Send, tercer depósito en 48 h"],
+      ["C-4112229788-2023-07-13", 0.52, "review", "high_priority", "Gather-Scatter con 6 contrapartes nuevas"],
+      ["C-5471569552-2023-07-09", 0.47, "review", "high_priority", "s_amt_z_30d = 4,9"],
+    ],
+    log: [
+      ["Agente", "Retuvo 5 casos de revisión (agent_band high_priority)", "21:31"],
+      ["Agente", "Propuso bajar prioridad alta a 0,400", "21:40"],
+      ["Compuerta", "Simulación OOT: precisión 91,2 %, por debajo de 95 %", "21:40"],
+      ["API de ML", "Sin cambio; queda thresholds_v1.1-agente", "21:40"],
+    ],
+  },
+];
+/* Copia de los datos de ejemplo: se vuelve a ellos si el agente aún no publicó nada. */
+const EXAMPLE = { base: BASE, props: PROPS };
+const STATUS = {
+  pending:  { pill: "s-warn", bar: "b-warn", label: "En simulación", head: "Pendiente de la compuerta" },
+  applied:  { pill: "s-ok",  bar: "b-ok",  label: "Aplicada",  head: "El espectro se movió" },
+  rejected: { pill: "s-bad", bar: "b-bad", label: "Rechazada por la compuerta", head: "El espectro no se movió" },
+  blocked:  { pill: "s-info", bar: "b-info", label: "Esperando al analista", head: "Bloqueada: el agente no puede relajar" },
+};
+const BAND = { auto_close_eligible: ["s-ok", "Cierre"], review: ["s-warn", "Revisión"], high_priority: ["s-bad", "Prioridad alta"] };
+
+/* Muestra de casos con lavado (posición = percentil del score). Uno cae entre 59,6 y 61,2: el que atrapa P-002. */
+const TICKS = [12.4, 47.9, 60.3, 66.1, 71.8, 77.5, 83.0, 87.2, 89.4, 90.8, 92.1, 93.0];
+for (let i = 0; i < 34; i++) TICKS.push(93.8 + (i * 6.1) / 34 + ((i * 7) % 5) * 0.03);
+
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const band = (k) => BAND[k] || ["s-info", esc(k)];
+const fmtP = (v) => { const p = Number(v); if (!Number.isFinite(p)) return "–"; return p >= 0.1 ? p.toFixed(3).replace(".", ",") : p.toFixed(5).replace(".", ","); };
+const fmt1 = (x) => x.toFixed(1).replace(".", ",");
+const $ = (s) => document.querySelector(s);
+const spec = $("#spec");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let mode = "normal";
+let filter = "all";
+let selected = "P-002";
+/* Umbrales vigentes en modo normal: el destino de la última propuesta aplicada, o la banda base. */
+const liveNormal = () => {
+  const last = PROPS.filter((p) => p.status === "applied" && p.to).pop();
+  const s = last ? last.to : BASE.normal;
+  return { a: s.a, h: s.h, auto: s.auto, high: s.high };
+};
+let state = liveNormal();
+const current = () => mode === "normal" ? liveNormal() : { ...BASE[mode] };
+
+function paint(s) {
+  spec.style.setProperty("--a", s.a);
+  spec.style.setProperty("--h", s.h);
+  $("#l-auto").textContent = "p < " + fmtP(s.auto);
+  $("#l-high").textContent = "p ≥ " + fmtP(s.high);
+  $(".h-auto").style.display = s.a >= s.h ? "none" : "";
+  $("#z-auto").textContent = fmt1(s.a) + " % de los casos";
+  $("#z-rev").textContent = fmt1(Math.max(0, s.h - s.a)) + " %";
+  $("#z-high").textContent = fmt1(100 - s.h) + " %";
+  $(".z-high").style.display = 100 - s.h < 0.5 ? "none" : "";
+  $(".z-rev").style.display = s.h - s.a < 0.5 ? "none" : "";
+  document.querySelectorAll("#ticks i").forEach((t) => t.classList.toggle("miss", +t.dataset.x < s.a));
+}
+
+function tween(from, to, ms) {
+  if (reduce || ms === 0) { state = { ...to }; paint(state); return Promise.resolve(); }
+  return new Promise((done) => {
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 4);
+      state = { a: from.a + (to.a - from.a) * e, h: from.h + (to.h - from.h) * e,
+                auto: k < 1 ? from.auto + (to.auto - from.auto) * e : to.auto,
+                high: k < 1 ? from.high + (to.high - from.high) * e : to.high };
+      paint(state);
+      k < 1 ? requestAnimationFrame(step) : done();
+    };
+    requestAnimationFrame(step);
+  });
+}
+const wait = (ms) => new Promise((r) => setTimeout(r, reduce ? 0 : ms));
+
+function ghost(x, label, kind) {
+  const g = $("#ghost");
+  if (x == null) { g.classList.remove("on", "try"); return; }
+  g.style.left = x + "%";
+  $("#ghost-l").textContent = label;
+  g.classList.toggle("try", kind === "try");
+  g.classList.add("on");
+}
+
+function stats(s) {
+  const k = mode !== "normal" ? mode : s.a < 60.4 ? "v11" : "v1";
+  const V = {
+    v1:      ["v1 del modelo",          "61,2 %", "3",  "119,2", "99,5 %"],
+    v11:     ["v1.1-agente", "59,6 %", "2",  "122,4", "99,5 %"],
+    reduced: ["Capacidad 50 %",         "79,5 %", "7",  "62,9",  "99,5 %"],
+    none:    ["Sin analista",           "61,2 %", "3",  "0",     "16,9 %"],
+  };
+  const base = V.v1, now = V[k], same = k === "v1";
+  const rows = [["Cierre automático", 1], ["Lavado que se cierra solo (casos)", 2], ["Cola del analista (casos por día)", 3], ["Precisión de prioridad alta", 4]];
+  $("#stats").innerHTML = `<table class="cmp num">
+    <thead><tr><th scope="col"><span class="sr">Métrica</span></th><th scope="col">${base[0]}</th>${same ? "" : `<th scope="col">${now[0]}</th>`}</tr></thead>
+    <tbody>${rows.map(([l, i]) => `<tr><th scope="row">${l}</th><td>${base[i]}</td>${same ? "" : `<td class="${now[i] !== base[i] ? "chg" : ""}">${now[i]}</td>`}</tr>`).join("")}</tbody>
+  </table>`;
+}
+
+function renderList() {
+  const counts = { all: PROPS.length, applied: 0, rejected: 0, blocked: 0, pending: 0 };
+  PROPS.forEach((p) => counts[p.status]++);
+  Object.entries(counts).forEach(([k, v]) => { const el = $("#c-" + k); if (el) el.textContent = v; });
+  $("#list").innerHTML = PROPS.slice().reverse().filter((p) => filter === "all" || p.status === filter).map((p) => {
+    const st = STATUS[p.status];
+    const at = String(p.at ?? "");
+    return `<button class="card" role="listitem" data-id="${esc(p.id)}" aria-current="${p.id === selected}">
+      <span class="stripe ${st.bar}"></span>
+      <span class="t">${esc(p.title)}</span><span class="time">${esc(at.split(" · ")[1] ?? at)}</span>
+      <span class="sub">${esc(p.sub)}</span>
+      <span class="meta"><span class="pill ${st.pill}">${st.label}</span><span class="tag">${esc(p.id)} · agente</span></span>
+    </button>`;
+  }).join("") || `<p class="empty">No hay propuestas en este estado.</p>`;
+}
+
+function renderProp() {
+  const p = PROPS.find((x) => x.id === selected);
+  if (!p) { $("#prop").innerHTML = `<p class="empty">No hay propuestas del agente.</p>`; return; }
+  const st = STATUS[p.status];
+  const arrow = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>`;
+  const which = p.ask[0] === "auto" ? "cierre automático" : "prioridad alta";
+  $("#prop").innerHTML = `
+    <div class="sec-head"><h3 id="t-prop">Propuesta ${esc(p.id)}</h3><span class="tag">${esc(p.at)}</span></div>
+    <p class="verdict"><span class="pill ${st.pill}">${st.label}</span><b>${st.head}.</b> ${esc(p.reason)}</p>
+    <p class="ask">Pidió mover el umbral de <b>${which}</b> de <code>${fmtP(p.ask[1])}</code> a <code>${fmtP(p.ask[2])}</code>.</p>
+    ${p.guards ? `<h4>Límites de la compuerta</h4><ul class="guards">${p.guards.map(([n, l, d, ok]) => `
+      <li><div><b>${esc(n)}</b><small>${esc(l)}</small></div><span class="delta num">${esc(d)}</span>
+      <span class="pill ${ok === null || ok === undefined ? "s-warn" : ok ? "s-ok" : "s-bad"}">${ok === null || ok === undefined ? "Lo calcula ML" : ok ? "Cumple" : "No cumple"}</span></li>`).join("")}</ul>` : ""}
+    <h4>Evidencia del agente</h4>
+    <ul class="evidence">${p.evidence.map(([c, sc, m, a, why]) => `
+      <li><span class="tag" style="color:var(--fg)">${esc(c)}</span><span class="num mono" style="font-size:12px">p ${fmtP(sc)}</span>
+      <span class="band"><span class="pill ${band(m)[0]}">${band(m)[1]}</span>${arrow}<span class="pill ${band(a)[0]}">${band(a)[1]}</span><small style="color:var(--muted)">${esc(why)}</small></span></li>`).join("")}</ul>
+    <h4>Registro</h4>
+    <ol class="timeline">${p.log.map(([who, what, t], i) => `
+      <li><span class="tdot ${i === p.log.length - 1 ? st.bar : "b-info"}"></span><span><b style="font-weight:500">${esc(who)}</b> · ${esc(what)}</span><small class="num">${esc(t)}</small></li>`).join("")}</ol>`;
+}
+
+async function play(p, opts = {}) {
+  if (mode !== "normal") setMode("normal", true);
+  const cap = $("#caption");
+  const id = esc(p.id), which = p.ask[0] === "auto" ? "cierre automático" : "prioridad alta";
+  if (p.status === "blocked" || p.status === "pending" || !p.to) {
+    ghost(null);
+    await tween(state, opts.fast ? p.from : current(), opts.fast ? 0 : 500);
+    stats(state);
+    cap.innerHTML = p.status === "blocked"
+      ? `<b>${id}:</b> el agente pidió relajar el cierre. Bloqueada hasta que el analista confirme los falsos positivos.`
+      : `<b>${id}:</b> ${esc(p.reason)}`;
+    return;
+  }
+  await tween(state, p.from, opts.fast ? 0 : 500);
+  const key = p.ask[0] === "auto" ? "a" : "h";
+  if (p.status === "applied") {
+    ghost(p.from[key], "antes");
+    cap.innerHTML = `<b>${id}:</b> la compuerta aprobó. El umbral de ${which} bajó a ${fmtP(p.ask[2])}. ${esc(p.reason)}`;
+    await tween(state, p.to, 900);
+  } else {
+    ghost(p.to[key], "intento rechazado", "try");
+    cap.innerHTML = `<b>${id}:</b> el agente intentó bajar ${which} a ${fmtP(p.ask[2])}…`;
+    await tween(state, p.to, 600);
+    await wait(500);
+    cap.innerHTML = `<b>${id}:</b> rechazada. ${esc(p.reason)}`;
+    await tween(state, p.from, 700);
+  }
+  stats(state);
+}
+
+function setMode(m, silent) {
+  mode = m;
+  document.querySelectorAll("[data-m]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.m === m));
+  $("#ver").textContent = (m === "normal" ? "thresholds_v1.1-agente" : "thresholds_v1") + " · modo " + BASE[m].label;
+  ghost(null);
+  if (!silent) {
+    tween(state, current(), 700).then(() => stats(state));
+    $("#caption").textContent = m === "normal"
+      ? "Modo normal: el único que el agente ha ajustado hasta ahora."
+      : m === "reduced"
+        ? "Con la mitad de analistas, el cierre automático sube a 79,5 % y se pierden 7 casos de lavado en 83 días."
+        : "Sin analista no hay revisión: todo lo escalado queda retenido de forma preventiva.";
+  }
+  stats(current());
+}
+
+document.querySelector("#ticks").innerHTML = TICKS.map((x) => `<i data-x="${x}" style="left:${x}%"></i>`).join("");
+
+/* Dibuja todo con los BASE y PROPS vigentes. Se llama al cargar y cada vez que llegan datos nuevos. */
+function draw() {
+  if (!PROPS.some((p) => p.id === selected)) selected = PROPS.length ? PROPS[PROPS.length - 1].id : null;
+  state = current(); ghost(null);
+  paint(state); stats(state); renderList(); renderProp();
+}
+draw();
+
+/* Datos en vivo: GET /api/umbrales devuelve lo último que publicó el agente (POST /api/agent-learning). */
+const okNum = (v) => v !== null && v !== "" && Number.isFinite(Number(v));
+const okBand = (b) => !!b && typeof b === "object" && ["a", "h", "auto", "high"].every((k) => okNum(b[k]));
+const okBase = (b) => !!b && typeof b === "object" && ["normal", "reduced", "none"].every((m) => okBand(b[m]));
+const num4 = (b) => ({ a: +b.a, h: +b.h, auto: +b.auto, high: +b.high });
+function cleanProp(p) {
+  if (!p || typeof p !== "object" || !STATUS[p.status] || !Array.isArray(p.ask) || !okBand(p.from)) return null;
+  return {
+    id: String(p.id ?? ""), at: String(p.at ?? ""), status: p.status,
+    title: String(p.title ?? ""), sub: String(p.sub ?? ""), reason: String(p.reason ?? ""),
+    ask: [p.ask[0] === "high" ? "high" : "auto", p.ask[1], p.ask[2]],
+    from: num4(p.from), to: okBand(p.to) ? num4(p.to) : null,
+    guards: Array.isArray(p.guards) ? p.guards.filter(Array.isArray) : null,
+    evidence: Array.isArray(p.evidence) ? p.evidence.filter(Array.isArray) : [],
+    log: Array.isArray(p.log) ? p.log.filter(Array.isArray) : [],
+  };
+}
+let lastKey = "ejemplo";
+async function refresh() {
+  let live = null;
+  try {
+    const r = await fetch("/api/umbrales", { credentials: "same-origin", cache: "no-store" });
+    if (r.ok) live = await r.json();
+  } catch { /* sin red: se queda con lo que hay */ }
+  const props = live && live.fuente === "agente" && Array.isArray(live.props) ? live.props.map(cleanProp).filter(Boolean) : [];
+  const isLive = props.length > 0;
+  const tag = $("#fuente");
+  if (isLive) {
+    const t = new Date(live.actualizado);
+    tag.textContent = "Datos en vivo del agente · actualizado " + (isNaN(t) ? "–" : t.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    tag.className = "pill s-ok fuente";
+  } else {
+    tag.textContent = "Datos de ejemplo";
+    tag.className = "pill s-info fuente";
+  }
+  $("#spec-note").textContent = isLive ? "Propuestas del agente; bandas base reales (OOT)" : "Propuestas de ejemplo; bandas base reales (OOT)";
+  const key = isLive ? JSON.stringify([live.base, props]) : "ejemplo";
+  if (key === lastKey || document.querySelector(".app.busy")) return; // sin cambios, o reproduciendo el aprendizaje
+  lastKey = key;
+  PROPS = isLive ? props : EXAMPLE.props;
+  BASE = isLive && okBase(live.base)
+    ? Object.fromEntries(["normal", "reduced", "none"].map((m) => [m, { ...num4(live.base[m]), label: String(live.base[m].label || EXAMPLE.base[m].label) }]))
+    : EXAMPLE.base;
+  draw();
+}
+refresh();
+setInterval(refresh, 10000);
+
+$("#list").addEventListener("click", (e) => {
+  const c = e.target.closest(".card"); if (!c) return;
+  selected = c.dataset.id; renderList(); renderProp();
+  play(PROPS.find((p) => p.id === selected));
+});
+document.querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", () => {
+  filter = b.dataset.f;
+  document.querySelectorAll("[data-f]").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  renderList();
+}));
+document.querySelectorAll("[data-m]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.m)));
+
+$("#replay").addEventListener("click", async () => {
+  const btn = $("#replay"); btn.disabled = true;
+  document.querySelector(".app").classList.add("busy");
+  setMode("normal", true);
+  ghost(null);
+  await tween(state, { ...BASE.normal }, 500);
+  $("#caption").innerHTML = "<b>thresholds_v1:</b> los umbrales que salieron del modelo, sin ajustes.";
+  await wait(1200);
+  for (const p of PROPS) {
+    selected = p.id; renderList(); renderProp();
+    await play(p, { fast: true });
+    await wait(1800);
+  }
+  stats(state);
+  document.querySelector(".app").classList.remove("busy");
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>
