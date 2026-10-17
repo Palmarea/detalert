@@ -119,6 +119,31 @@ El bloque completo:
 }
 ```
 
+## Lo que aprendió el agente: `context.aml.aprendizaje`
+
+Los casos nuevos traen también qué aprendió el agente y qué usó de su experiencia:
+
+```json
+"aprendizaje": {
+  "version_parametros": "a1b2c3d4",
+  "cambios_aplicados": [ { "id": "F-behavioural-1", "variable": "s_amt_ratio_mean_30d", "antes": 4.0, "despues": 3.2, "fecha": "2026-10-17" } ],
+  "memoria_cuenta": [ { "case_id": "C-5471569552-2023-07-09", "decision": "escalated", "familia_inferida": "behavioural", "confianza": 70, "resumen": "Cheque grande a receptor nuevo…" } ],
+  "casos_previos": 1,
+  "propuestas_pendientes": 2,
+  "aprendio": "Usó 1 decisión previa sobre la cuenta 5471569552 y la firma F-behavioural-1 con el umbral ajustado (4,0 → 3,2)"
+}
+```
+
+| Campo | Qué mostrar |
+|---|---|
+| `aprendio` | Una frase destacada: "Lo que el agente aprendió para este caso" |
+| `memoria_cuenta` | "Ya vi estas cuentas": casos previos, con su decisión y familia |
+| `cambios_aplicados` | Parámetros que cambiaron por aprendizaje: antes → después, y cuándo |
+| `version_parametros` | La versión de las reglas con la que se decidió (trazabilidad) |
+| `propuestas_pendientes` | Cuántas mejoras propuso el agente y esperan aprobación |
+
+También hay un paso nuevo, `memoria`, en `context.aml.pasos`, justo antes del decisor: "2 decisiones previas sobre estas cuentas; parámetros v…".
+
 ## Caso del jurado en vivo
 
 **Hoy:** el jurado dicta una transacción (cuenta emisora, receptora, monto, tipo de pago y monedas), la corremos desde la terminal del agente, ML la puntúa en vivo (`/score/live`) y en menos de un minuto aparece en la bandeja con id `evt_aml_jurado_<fecha-hora>`. Búsquenla escribiendo `jurado`.

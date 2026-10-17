@@ -1,0 +1,9 @@
+{
+  "sender_account": "6324740324",
+  "receiver_account": "2134684836",
+  "payment_currency": "UK pounds",
+  "received_currency": "UK pounds",
+  "amount": 140.5,
+  "payment_type": "Cash Withdrawal",
+  "ts": "2023-08-08T10:12:00Z"
+}

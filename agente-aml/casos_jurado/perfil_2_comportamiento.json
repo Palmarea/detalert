@@ -1,0 +1,9 @@
+{
+  "sender_account": "6324740324",
+  "receiver_account": "980501511",
+  "payment_currency": "UK pounds",
+  "received_currency": "UK pounds",
+  "amount": 12500,
+  "payment_type": "Debit card",
+  "ts": "2023-08-08T10:12:00Z"
+}
