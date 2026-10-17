@@ -1,39 +1,41 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { FILTERS, URGENCY, matches, urgencyReason } from "@/lib/payments/catalog";
+import { URGENCY, matches, urgencyReason } from "@/lib/payments/catalog";
+import { countSignals, signal, type Signal } from "@/lib/payments/signal";
 import { useNow, usePaymentStream } from "@/hooks/usePaymentStream";
 import { EventCard } from "./EventCard";
 import { EventDetail } from "./EventDetail";
 import { UserFoot } from "./UserFoot";
-import type { ResolutionAction } from "@/lib/payments/types";
+import { SignalStrip } from "./Signals";
+import type { EvidenceInput, ResolutionAction } from "@/lib/payments/types";
 
-interface Toast { action: ResolutionAction; id: string; name: string }
+interface Toast { action: ResolutionAction; id: string; name: string; evidence: boolean }
 
-export function Monitor({ user }: { user: { name: string; role: string } }) {
-  const { state, connection, select, close, setFilter, setUrgency, setQuery, setLive } = usePaymentStream();
+export function Monitor({ user, initialId }: { user: { name: string; role: string }; initialId?: string }) {
+  const { state, connection, select, close, setUrgency, setQuery, setLive } = usePaymentStream();
+  const [sig, setSig] = useState<Signal | null>(null); // filtro por semáforo (local a la bandeja)
   const [toast, setToast] = useState<Toast | null>(null);
   const now = useNow();
   const [open, setOpen] = useState(false); // panel de detalle en móvil
   const mainRef = useRef<HTMLElement>(null);
 
+  // Enlace desde el panel (/?id=…): abre ese caso sin el filtro de urgencia
+  useEffect(() => {
+    if (!initialId) return;
+    select(initialId);
+    setUrgency("all");
+    setOpen(true);
+  }, [initialId, select, setUrgency]);
+
   const items = useMemo(
-    () => state.events.filter((e) => matches(e, state.filter, state.q, state.urgency)),
-    [state.events, state.filter, state.q, state.urgency],
+    () => state.events.filter((e) => matches(e, state.filter, state.q, state.urgency) && (!sig || signal(e).signal === sig)),
+    [state.events, state.filter, state.q, state.urgency, sig],
   );
+  const signals = useMemo(() => countSignals(state.events), [state.events]);
   const urgentCount = useMemo(() => state.events.filter((e) => urgencyReason(e)).length, [state.events]);
   const urgencyCount = { urgent: urgentCount, normal: state.events.length - urgentCount, all: state.events.length };
   const selected = state.events.find((e) => e.id === state.selected);
-
-  const stats = useMemo(() => {
-    const ev = state.events;
-    const ok = ev.filter((e) => e.type === "payment.succeeded" && e.data.currency === "PEN").reduce((a, e) => a + e.data.amount, 0);
-    return {
-      total: ev.length,
-      ok: "S/ " + Math.round(ok / 100).toLocaleString("es-PE"),
-      bad: ev.filter((e) => e.type === "payment.failed" || e.type === "chargeback.opened").length,
-    };
-  }, [state.events]);
 
   const pick = useCallback((id: string) => {
     select(id);
@@ -42,13 +44,13 @@ export function Monitor({ user }: { user: { name: string; role: string } }) {
   }, [select]);
 
   /* Aprobar / rechazar: guarda en la DB, saca el caso de la bandeja y avisa. Devuelve el error a mostrar, o null. */
-  const resolve = useCallback(async (id: string, action: ResolutionAction, note: string) => {
+  const resolve = useCallback(async (id: string, action: ResolutionAction, note: string, evidence?: EvidenceInput) => {
     const ev = state.events.find((e) => e.id === id);
     try {
       const res = await fetch(`/api/events/${encodeURIComponent(id)}/resolve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, note }),
+        body: JSON.stringify({ action, note, evidence }),
       });
       if (res.status === 401) {
         location.assign("/login?expired=1");
@@ -64,7 +66,7 @@ export function Monitor({ user }: { user: { name: string; role: string } }) {
       const next = items[i + 1] ?? items[i - 1];
       close([id]);
       if (next) select(next.id);
-      setToast({ action, id, name: ev?.data.customer.name ?? id });
+      setToast({ action, id, name: ev?.data.customer.name ?? id, evidence: !!evidence });
       return null;
     } catch {
       return "Sin conexión con el servidor. La decisión no se guardó.";
@@ -99,7 +101,8 @@ export function Monitor({ user }: { user: { name: string; role: string } }) {
       <aside>
         <div className="side-head">
           <div className="brand">
-            <h1>Monitor de pagos</h1>
+            <h1>Pendientes</h1>
+            <Link className="nav-link" href="/panel">Panel</Link>
             <Link className="nav-link" href="/historial">Historial</Link>
             <button className="live" data-on={state.live} data-conn={connection} title="Pausar o reanudar el stream" onClick={() => setLive(!state.live)}>
               <span className="dot" />
@@ -114,18 +117,9 @@ export function Monitor({ user }: { user: { name: string; role: string } }) {
               </button>
             ))}
           </div>
-          <div className="stats">
-            <div className="stat"><span>Eventos</span><b className="num">{stats.total}</b></div>
-            <div className="stat"><span>Aprobado</span><b className="num">{stats.ok}</b></div>
-            <div className="stat"><span>Fallidos</span><b className="num">{stats.bad}</b></div>
-          </div>
+          <SignalStrip counts={signals} active={sig} onPick={setSig} />
           <div className="tools">
-            <input type="search" placeholder="Buscar por ID, cliente o comercio" aria-label="Buscar eventos" onChange={(e) => setQuery(e.target.value)} />
-          </div>
-          <div className="chips" role="group" aria-label="Filtrar por estado">
-            {FILTERS.map(([k, l]) => (
-              <button key={k} className="chip" aria-pressed={state.filter === k} onClick={() => setFilter(k)}>{l}</button>
-            ))}
+            <input type="search" placeholder="Buscar por ID, cliente o comercio" aria-label="Buscar pendientes" onChange={(e) => setQuery(e.target.value)} />
           </div>
         </div>
         {n > 0 && (
@@ -150,10 +144,12 @@ export function Monitor({ user }: { user: { name: string; role: string } }) {
           ) : (
             <div className="empty">
               {!state.events.length
-                ? "Esperando eventos de pago…"
+                ? "Sin pendientes: nada cayó en la zona de revisión (riesgo 40–69). Los que caigan aparecerán aquí."
                 : state.urgency === "urgent" && !urgentCount
-                  ? "Sin eventos urgentes por ahora. Los nuevos aparecerán aquí en cuanto lleguen."
-                  : "Ningún evento coincide con el filtro."}
+                  ? "Sin pendientes urgentes por ahora. Los nuevos aparecerán aquí en cuanto lleguen."
+                  : sig
+                    ? "Ningún caso de este color con los filtros actuales."
+                    : "Ningún evento coincide con el filtro."}
             </div>
           )}
         </div>
@@ -164,7 +160,7 @@ export function Monitor({ user }: { user: { name: string; role: string } }) {
           <EventDetail
             event={selected}
             user={user}
-            onResolve={(action, note) => resolve(selected.id, action, note)}
+            onResolve={(action, note, evidence) => resolve(selected.id, action, note, evidence)}
             onBack={() => setOpen(false)}
           />
         ) : (
@@ -172,7 +168,7 @@ export function Monitor({ user }: { user: { name: string; role: string } }) {
             <p>
               {state.events.length
                 ? "Selecciona un caso de la izquierda para ver su detalle y decidirlo."
-                : "No hay casos abiertos. Cuando la fuente envíe eventos (npm run feed), aparecerán aquí."}
+                : "No hay casos pendientes. Aquí llegan solo los pagos con riesgo en la zona de revisión (40–69): por debajo los aprueba el agente y desde 70 los bloquea."}
             </p>
           </div>
         )}
@@ -180,7 +176,7 @@ export function Monitor({ user }: { user: { name: string; role: string } }) {
       {toast && (
         <div className={`toast s-${toast.action === "approved" ? "ok" : "bad"}`} role="status">
           <span>
-            <b>{toast.action === "approved" ? "Aprobado" : "Rechazado"}</b> · {toast.name}. Archivado y notificación en cola.
+            <b>{toast.action === "approved" ? "Aprobado" : "Rechazado"}</b> · {toast.name}. {toast.evidence ? "Guardado como evidencia; " : "Archivado y "}notificación en cola.
           </span>
           <Link href={`/historial?q=${encodeURIComponent(toast.id)}`}>Ver en historial</Link>
         </div>

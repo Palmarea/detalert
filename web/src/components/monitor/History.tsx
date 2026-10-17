@@ -18,6 +18,7 @@ interface Filters {
   outcome: Outcome;
   urgency: Urgency;
   analyst: string;
+  evidence: string; // "1" = solo archivados como evidencia
   from: string;
   to: string;
 }
@@ -30,7 +31,7 @@ interface Page {
 
 export function History({ user, initialQuery }: { user: { name: string; role: string }; initialQuery: string }) {
   const now = useNow();
-  const [f, setF] = useState<Filters>({ q: initialQuery, outcome: "all", urgency: "all", analyst: "", from: "", to: "" });
+  const [f, setF] = useState<Filters>({ q: initialQuery, outcome: "all", urgency: "all", analyst: "", evidence: "", from: "", to: "" });
   const [q, setQ] = useState(initialQuery); // texto del buscador, se aplica con una pequeña espera
   const [page, setPage] = useState<Page | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export function History({ user, initialQuery }: { user: { name: string; role: st
 
   const events = page?.events ?? [];
   const current = events.find((e) => e.id === selected);
-  const filtered = f.q || f.outcome !== "all" || f.urgency !== "all" || f.analyst || f.from || f.to;
+  const filtered = f.q || f.outcome !== "all" || f.urgency !== "all" || f.analyst || f.evidence || f.from || f.to;
 
   return (
     <div className={`app${open ? " open" : ""}`}>
@@ -79,7 +80,7 @@ export function History({ user, initialQuery }: { user: { name: string; role: st
         <div className="side-head">
           <div className="brand">
             <h1>Historial</h1>
-            <Link className="nav-link" href="/">Casos abiertos</Link>
+            <Link className="nav-link" href="/">Pendientes</Link>
           </div>
           <div className="urgency" role="group" aria-label="Filtrar por resultado">
             {OUTCOMES.map(([k, l]) => (
@@ -112,11 +113,12 @@ export function History({ user, initialQuery }: { user: { name: string; role: st
             {URGENCY.map(([k, l]) => (
               <button key={k} className="chip" aria-pressed={f.urgency === k} onClick={() => set("urgency", k)}>{l}</button>
             ))}
+            <button className="chip" aria-pressed={f.evidence === "1"} onClick={() => set("evidence", f.evidence ? "" : "1")}>Con evidencia</button>
           </div>
           <div className="h-count">
             <span className="num">{page ? `${page.total} caso${page.total === 1 ? "" : "s"}` : "Cargando…"}</span>
             {filtered && (
-              <button className="link" onClick={() => { setQ(""); setF({ q: "", outcome: "all", urgency: "all", analyst: "", from: "", to: "" }); }}>
+              <button className="link" onClick={() => { setQ(""); setF({ q: "", outcome: "all", urgency: "all", analyst: "", evidence: "", from: "", to: "" }); }}>
                 Limpiar filtros
               </button>
             )}
@@ -148,7 +150,7 @@ export function History({ user, initialQuery }: { user: { name: string; role: st
           ) : (
             !loading && (
               <div className="empty">
-                {filtered ? "Ningún caso archivado coincide con los filtros." : "Aún no hay casos archivados. Aprueba o rechaza uno desde Casos abiertos."}
+                {filtered ? "Ningún caso archivado coincide con los filtros." : "Aún no hay casos archivados. Aquí llegan los que califica el agente y los que decides desde Pendientes."}
               </div>
             )
           )}

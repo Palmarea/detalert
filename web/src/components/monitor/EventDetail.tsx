@@ -1,19 +1,26 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { STEP_CLS, typeInfo, urgencyReason } from "@/lib/payments/catalog";
+import { STEP_CLS, THRESHOLDS, needsReview, typeInfo, urgencyReason } from "@/lib/payments/catalog";
 import { auditHash, type Decision } from "@/lib/payments/decision";
 import { jsonHTML, money } from "@/lib/payments/format";
-import type { PaymentEvent, ResolutionAction } from "@/lib/payments/types";
+import { signal, spectra } from "@/lib/payments/signal";
+import { useNow } from "@/hooks/usePaymentStream";
+import { EVIDENCE_CATEGORIES, EVIDENCE_INDICATORS, categoryLabel, indicatorLabel } from "@/lib/payments/evidence";
+import type { EvidenceCategory, EvidenceIndicator, EvidenceInput, PaymentEvent, ResolutionAction } from "@/lib/payments/types";
 import { AgentPanel, useAgentAudit } from "@agent/index";
 import { AlertIcon, ChevronIcon } from "@/components/icons";
+import { ScoreHero, SpectrumBar } from "./Signals";
 
 interface Props {
   event: PaymentEvent;
   user: { name: string; role: string };
   onBack: () => void;
   /* Bandeja: el analista puede marcar el caso y consultar al agente. Sin onResolve (historial) es solo lectura. */
-  onResolve?: (action: ResolutionAction, note: string) => Promise<string | null>; // devuelve el error, o null
+  onResolve?: Resolver;
 }
+
+/* Devuelve el error a mostrar, o null. evidence solo viaja en rechazos. */
+type Resolver = (action: ResolutionAction, note: string, evidence?: EvidenceInput) => Promise<string | null>;
 
 const DECIDER: Record<Decision["decidedBy"]["kind"], string> = { auto: "Automática", human: "Persona", external: "Tercero" };
 const stamp = (iso: string) => new Date(iso).toLocaleString("es-PE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -33,6 +40,7 @@ export function EventDetail({ event: e, user, onBack, onResolve }: Props) {
       ...(res
         ? [
             { at: res.at, actor: res.by.name, action: `${res.action === "approved" ? "Aprobó" : "Rechazó"} y archivó el caso${res.note ? `: «${res.note}»` : ""}`, hash: auditHash(e.id + res.at) },
+            ...(res.evidence ? [{ at: res.evidence.at, actor: res.by.name, action: `Guardó el caso como evidencia: ${categoryLabel(res.evidence.category)}`, hash: auditHash(e.id + "x") }] : []),
             ...(res.notification ? [{ at: res.at, actor: "Sistema", action: `Notificación en cola (canal ${res.notification.channel === "por_definir" ? "por definir" : res.notification.channel})`, hash: auditHash(e.id + "n") }] : []),
           ]
         : []),
@@ -40,7 +48,10 @@ export function EventDetail({ event: e, user, onBack, onResolve }: Props) {
     [x, consults, res, e.id],
   );
   const urgent = urgencyReason(e);
-  const risk = d.risk_score >= 70 ? "bad" : d.risk_score >= 40 ? "warn" : "ok";
+  const risk = d.risk_score >= THRESHOLDS.BLOCK ? "bad" : d.risk_score >= THRESHOLDS.REVIEW ? "warn" : "ok";
+  const now = useNow(15000);
+  const sig = signal(e);
+  const specs = useMemo(() => spectra(e, now).filter((s) => s.key !== "risk"), [e, now]); // el riesgo va en grande arriba
 
   let alert: React.ReactNode = null;
   if (d.failure_code)
@@ -52,12 +63,16 @@ export function EventDetail({ event: e, user, onBack, onResolve }: Props) {
         {new Date(d.respond_by).toLocaleDateString("es-PE", { day: "numeric", month: "long" })}
       </div>
     );
-  if (d.status === "pending")
-    alert = <div className="alert s-warn">El pago aún no se confirma. Se recibirá un nuevo evento cuando cambie de estado.</div>;
+  if (needsReview(e) && !res)
+    alert = (
+      <div className="alert s-warn">
+        <b>Pendiente de revisión:</b> el puntaje {d.risk_score} está entre el umbral de revisión ({THRESHOLDS.REVIEW}) y el de bloqueo ({THRESHOLDS.BLOCK}), así que el agente no lo califica solo. Queda retenido hasta que lo apruebes o rechaces.
+      </div>
+    );
 
   return (
     <article className="detail">
-      <button className="back" onClick={onBack}>← {onResolve ? "Casos" : "Historial"}</button>
+      <button className="back" onClick={onBack}>← {onResolve ? "Pendientes" : "Historial"}</button>
       <div className="d-head">
         <div>
           <div className="type">{e.type} · {e.id}</div>
@@ -74,14 +89,28 @@ export function EventDetail({ event: e, user, onBack, onResolve }: Props) {
       </div>
       {alert}
 
+      <section className="section signal-card" aria-label="Semáforo e indicadores del caso">
+        <ScoreHero score={d.risk_score} signal={sig.signal} reason={sig.reason} />
+        <div className="spec-grid">
+          {specs.map((s) => <SpectrumBar key={s.key} s={s} />)}
+        </div>
+      </section>
+
       {res ? (
         <div className={`resolved s-${res.action === "approved" ? "ok" : "bad"}`}>
           <b>{ACTION_LABEL[res.action]} por {res.by.name}</b>
           <span>{res.by.role} · {stamp(res.at)}{res.notification ? " · notificación en cola" : ""}</span>
           {res.note && <p>«{res.note}»</p>}
+          {res.evidence && (
+            <p className="ev-saved">
+              <span className="ev-badge">Evidencia</span>
+              {categoryLabel(res.evidence.category)}
+              {res.evidence.indicators.length > 0 && <small> · señales: {res.evidence.indicators.map(indicatorLabel).join(", ")}</small>}
+            </p>
+          )}
         </div>
       ) : (
-        onResolve && <ResolveBar key={e.id} onResolve={onResolve} />
+        onResolve && <ResolveBar key={e.id} event={e} onResolve={onResolve} />
       )}
 
       <section className="section">
@@ -166,50 +195,110 @@ export function EventDetail({ event: e, user, onBack, onResolve }: Props) {
   );
 }
 
-/* Aprobar / Rechazar. Cada botón pide un segundo clic para confirmar (una decisión archivada no se deshace). */
-function ResolveBar({ onResolve }: { onResolve: (action: ResolutionAction, note: string) => Promise<string | null> }) {
+/* Aprobar / Rechazar.
+   - Aprobar pide un segundo clic para confirmar (una decisión archivada no se deshace).
+   - Rechazar abre un paso de confirmación donde, opcionalmente, el caso se guarda como evidencia
+     (categoría + señales del pago) para futuros análisis de riesgo. */
+function ResolveBar({ event: e, onResolve }: { event: PaymentEvent; onResolve: Resolver }) {
   const [note, setNote] = useState("");
   const [armed, setArmed] = useState<ResolutionAction | null>(null);
   const [busy, setBusy] = useState<ResolutionAction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [keep, setKeep] = useState(false); // archivar como evidencia
+  const [category, setCategory] = useState<EvidenceCategory | null>(null);
+  const [indicators, setIndicators] = useState<EvidenceIndicator[]>(EVIDENCE_INDICATORS.map((i) => i.key));
 
+  // Solo la aprobación se desarma sola; el paso de rechazo espera a que el analista termine
   useEffect(() => {
-    if (!armed) return;
+    if (armed !== "approved") return;
     const id = setTimeout(() => setArmed(null), 4000);
     return () => clearTimeout(id);
   }, [armed]);
 
-  const click = async (a: ResolutionAction) => {
+  const submit = async (a: ResolutionAction) => {
+    if (keep && a === "rejected" && !category) return setError("Elige una categoría o desmarca «Guardar como evidencia».");
+    setBusy(a);
+    const err = await onResolve(a, note, keep && a === "rejected" && category ? { category, indicators } : undefined);
+    if (err) {
+      setError(err);
+      setBusy(null);
+      if (a === "approved") setArmed(null);
+    }
+  };
+
+  const click = (a: ResolutionAction) => {
     if (busy) return;
     if (armed !== a) {
       setArmed(a);
       setError(null);
       return;
     }
-    setBusy(a);
-    const err = await onResolve(a, note);
-    if (err) {
-      setError(err);
-      setBusy(null);
-      setArmed(null);
-    }
+    submit(a);
   };
 
+  const toggle = (k: EvidenceIndicator) => setIndicators((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
+  const rejecting = armed === "rejected";
+  const fired = e.context?.rules.filter((r) => r.fired).length ?? 0;
+
   return (
-    <section className="resolve" aria-label="Decidir el caso">
+    <section className="resolve" data-step={rejecting ? "reject" : undefined} aria-label="Decidir el caso">
       <div className="resolve-head">
-        <h3>Decide este caso</h3>
+        <h3>{rejecting ? "Confirmar rechazo" : "Decide este caso"}</h3>
         <small>Se archiva, se registra a tu nombre y la notificación queda en cola.</small>
       </div>
       <div className="resolve-row">
-        <input value={note} onChange={(ev) => setNote(ev.target.value)} maxLength={1000} placeholder="Nota (opcional): por qué lo decides" aria-label="Nota de la decisión" />
-        <button type="button" className="btn btn-reject" data-armed={armed === "rejected"} disabled={!!busy} onClick={() => click("rejected")}>
-          {busy === "rejected" ? "Guardando…" : armed === "rejected" ? "Confirmar rechazo" : "Rechazar"}
-        </button>
-        <button type="button" className="btn btn-approve" data-armed={armed === "approved"} disabled={!!busy} onClick={() => click("approved")}>
-          {busy === "approved" ? "Guardando…" : armed === "approved" ? "Confirmar aprobación" : "Aprobar"}
-        </button>
+        <input value={note} onChange={(ev) => setNote(ev.target.value)} maxLength={1000} placeholder={rejecting ? "Nota: por qué lo rechazas (recomendado)" : "Nota (opcional): por qué lo decides"} aria-label="Nota de la decisión" />
+        {rejecting ? (
+          <button type="button" className="btn btn-ghost" disabled={!!busy} onClick={() => { setArmed(null); setError(null); }}>Cancelar</button>
+        ) : (
+          <button type="button" className="btn btn-reject" disabled={!!busy} onClick={() => click("rejected")}>Rechazar</button>
+        )}
+        {rejecting ? (
+          <button type="button" className="btn btn-reject" data-armed="true" disabled={!!busy} onClick={() => submit("rejected")}>
+            {busy === "rejected" ? "Guardando…" : keep ? "Rechazar y guardar evidencia" : "Confirmar rechazo"}
+          </button>
+        ) : (
+          <button type="button" className="btn btn-approve" data-armed={armed === "approved"} disabled={!!busy} onClick={() => click("approved")}>
+            {busy === "approved" ? "Guardando…" : armed === "approved" ? "Confirmar aprobación" : "Aprobar"}
+          </button>
+        )}
       </div>
+
+      {rejecting && (
+        <div className="evidence" data-on={keep}>
+          <label className="ev-toggle">
+            <input type="checkbox" checked={keep} onChange={(ev) => { setKeep(ev.target.checked); setError(null); }} />
+            <span>
+              <b>Guardar como evidencia para futuros análisis de riesgo</b>
+              <small>Opcional. Queda en el archivo de evidencias con el puntaje {e.data.risk_score}, {e.context?.factors.length ?? 0} factores y {fired} regla{fired === 1 ? "" : "s"} disparada{fired === 1 ? "" : "s"}.</small>
+            </span>
+          </label>
+          {keep && (
+            <>
+              <fieldset className="ev-group">
+                <legend>¿Qué tipo de caso es?</legend>
+                <div className="ev-chips">
+                  {EVIDENCE_CATEGORIES.map(([k, l]) => (
+                    <button key={k} type="button" className="chip" aria-pressed={category === k} onClick={() => { setCategory(k); setError(null); }}>{l}</button>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset className="ev-group">
+                <legend>Señales a guardar</legend>
+                <div className="ev-inds">
+                  {EVIDENCE_INDICATORS.map((i) => (
+                    <label key={i.key} className="ev-ind">
+                      <input type="checkbox" checked={indicators.includes(i.key)} onChange={() => toggle(i.key)} />
+                      <span>{i.label}</span>
+                      <small className="mono">{i.value(e.data)}</small>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </>
+          )}
+        </div>
+      )}
       {error && <p className="resolve-error" role="alert">{error}</p>}
     </section>
   );

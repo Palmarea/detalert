@@ -17,15 +17,16 @@ function hex(n: number) {
 const iso = (ms: number) => new Date(ms).toISOString();
 const ipPart = () => Math.floor(Math.random() * 255);
 
-/* force: genera un caso urgente concreto (lo usa el historial inicial para que la demo no arranque vacía). */
-export function fakeEvent(at = Date.now(), force?: "fraud" | "chargeback"): PaymentEvent {
+/* force: genera un caso concreto (lo usa el historial inicial para que la demo no arranque vacía).
+   "review" = pendiente en la parte alta de la zona de revisión y con monto alto: urgente. */
+export function fakeEvent(at = Date.now(), force?: "fraud" | "chargeback" | "review"): PaymentEvent {
   const r = Math.random();
   const type: PaymentEventType =
-    force === "chargeback" ? "chargeback.opened" : force === "fraud" ? "payment.failed" : r < 0.58 ? "payment.succeeded" : r < 0.74 ? "payment.pending" : r < 0.9 ? "payment.failed" : r < 0.97 ? "refund.created" : "chargeback.opened";
+    force === "chargeback" ? "chargeback.opened" : force === "fraud" ? "payment.failed" : force === "review" ? "payment.pending" : r < 0.45 ? "payment.succeeded" : r < 0.75 ? "payment.pending" : r < 0.9 ? "payment.failed" : r < 0.97 ? "refund.created" : "chargeback.opened";
   const [kind, brand] = rnd(METHODS);
   const name = rnd(NAMES);
   const currency: Currency = Math.random() < 0.8 ? "PEN" : "USD";
-  const amount = Math.round((Math.random() < 0.85 ? 15 + Math.random() * 450 : 800 + Math.random() * 4200) * 100);
+  const amount = Math.round((force === "review" ? 3200 + Math.random() * 1800 : Math.random() < 0.85 ? 15 + Math.random() * 450 : 800 + Math.random() * 4200) * 100);
   const history: HistoryStep[] = [{ status: "created", at: iso(at - 4000), note: "Intento de pago iniciado" }];
   const data: PaymentData = {
     payment_id: "pay_" + hex(14),
@@ -42,7 +43,13 @@ export function fakeEvent(at = Date.now(), force?: "fraud" | "chargeback"): Paym
     },
     merchant: rnd(MERCH),
     order_id: "ORD-" + seq++,
-    risk_score: force === "fraud" ? 72 + Math.floor(Math.random() * 24) : Math.floor(Math.random() * (type === "payment.failed" ? 95 : 45)),
+    // El puntaje decide el destino (ver THRESHOLDS): < 40 aprueba el agente, 40–69 bandeja, ≥ 70 bloquea el agente.
+    // pending y chargeback caen en la zona de revisión; el fraude, en bloqueo; el resto, en riesgo bajo.
+    risk_score:
+      force === "review" ? 58 + Math.floor(Math.random() * 12)
+      : type === "payment.pending" || type === "chargeback.opened" ? 40 + Math.floor(Math.random() * 30)
+      : type === "payment.failed" && (force === "fraud" || Math.random() < 0.4) ? 72 + Math.floor(Math.random() * 20)
+      : Math.floor(Math.random() * 40),
     ip: `190.${ipPart()}.${ipPart()}.${ipPart()}`,
     country: "PE",
     history,
@@ -58,10 +65,10 @@ export function fakeEvent(at = Date.now(), force?: "fraud" | "chargeback"): Paym
       break;
     case "payment.pending":
       data.status = "pending";
-      history.push({ status: "pending", at: iso(at), note: kind === "transfer" ? "Esperando confirmación bancaria" : "Esperando confirmación 3-D Secure" });
+      history.push({ status: "pending", at: iso(at), note: "Retenido: puntaje en zona de revisión, pasa a un analista" });
       break;
     case "payment.failed": {
-      const [c, m] = force === "fraud" ? FAILS[3] : rnd(FAILS);
+      const [c, m] = data.risk_score >= 70 ? FAILS[3] : rnd(FAILS.slice(0, 3));
       data.status = "failed";
       data.failure_code = c;
       data.failure_message = m;
@@ -91,7 +98,7 @@ export function fakeEvent(at = Date.now(), force?: "fraud" | "chargeback"): Paym
 
 /* Genera los eventos "ocurridos" entre since y now, igual ritmo que el prototipo
    (uno cada 2.5–6.5 s). Sin since devuelve un historial inicial de 15 eventos, 3 de ellos urgentes. */
-const URGENT_AT: Record<number, "fraud" | "chargeback"> = { 11: "fraud", 6: "chargeback", 2: "fraud" };
+const URGENT_AT: Record<number, "fraud" | "chargeback" | "review"> = { 11: "review", 8: "fraud", 6: "chargeback", 2: "review" };
 export function mockEventsSince(since: number | null, now = Date.now(), limit = 50): PaymentEvent[] {
   const out: PaymentEvent[] = [];
   if (since === null) {

@@ -66,6 +66,20 @@ export interface Resolution {
   at: string; // ISO
   by: { email: string; name: string; role: string };
   notification: { channel: string; status: "queued" | "sent" | "failed" } | null;
+  evidence: Evidence | null; // solo en rechazos que el analista archivó como evidencia
+}
+
+/* Evidencia para análisis de riesgo: qué tipo de caso es y qué rasgos del pago se guardan como señales */
+export type EvidenceCategory = "fraude_confirmado" | "suplantacion" | "tarjeta_robada" | "patron_sospechoso" | "contracargo_indebido" | "otro";
+export type EvidenceIndicator = "ip" | "identidad" | "medio" | "comercio";
+
+export interface EvidenceInput {
+  category: EvidenceCategory;
+  indicators: EvidenceIndicator[];
+}
+
+export interface Evidence extends EvidenceInput {
+  at: string; // ISO
 }
 
 /* Respuesta de GET /api/events?since=<cursor>

@@ -1,6 +1,6 @@
 # Monitor de pagos
 
-Monitor de casos de pago para analistas de fraude: los eventos llegan con su contexto (decisión, factores, reglas, auditoría), el analista los aprueba o rechaza, y cada decisión queda archivada en Postgres con su notificación en cola.
+Monitor de casos de pago para analistas de fraude: los eventos llegan con su contexto (decisión, factores, reglas, auditoría). El agente califica cada uno al recibirlo según su puntaje de riesgo: **< 40 lo aprueba, ≥ 70 lo bloquea, y lo que cae en la zona de revisión (40–69) queda pendiente** en la bandeja. Los umbrales están en `THRESHOLDS` (`src/lib/payments/catalog.ts`). El analista los aprueba o rechaza, y cada decisión queda archivada en Postgres con su notificación en cola.
 
 ```bash
 npm install
@@ -18,6 +18,8 @@ src/
   app/
     page.tsx                            # bandeja de casos abiertos
     historial/page.tsx                  # casos archivados con filtros
+    panel/page.tsx                      # panel: semáforo, indicadores y espectros
+    api/dashboard/route.ts              # GET: casos abiertos + agregados de lo resuelto hoy
     api/ingest/route.ts                 # POST: entrada de eventos (token INGEST_TOKEN)
     api/events/route.ts                 # GET: casos abiertos (polling)
     api/events/[id]/resolve/route.ts    # POST: aprobar / rechazar
@@ -29,6 +31,7 @@ src/
     repo.ts                             # consultas: guardar, abiertos, resolver, historial
     decision.ts                         # tipo del contexto + generador simulado (lo usa el feed)
     catalog.ts                          # tipos, filtros y criterios de urgencia
+    signal.ts                           # semáforo (rojo/ámbar/verde) y escalas de los espectros
 docs/flujo-eventos.md                   # flujo completo y contratos
 ```
 
@@ -67,6 +70,7 @@ Es idempotente (un `id` repetido se ignora). Si el formato real es otro, solo se
 | `events` | cada caso con su `data`, su `context` y `status` (`open` → `approved`/`rejected`) |
 | `resolutions` | quién lo decidió, cuándo, la acción y la nota (una por caso) |
 | `notifications` | cola de salida, canal `por_definir`, estado `queued` |
+| `evidence` | rechazos archivados como evidencia: categoría, señales elegidas y foto del caso (puntaje, factores, reglas) |
 
 Consultar a mano: `docker compose exec db psql -U monitor`. Borrar todo: `docker compose down -v`.
 

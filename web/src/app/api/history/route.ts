@@ -1,4 +1,4 @@
-/* GET /api/history?q=&outcome=&urgency=&analyst=&from=&to=&offset=  →  casos archivados */
+/* GET /api/history?q=&outcome=&urgency=&analyst=&evidence=1&from=&to=&offset=  →  casos archivados */
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/server";
 import { history, type HistoryFilter } from "@/lib/payments/repo";
@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     outcome: pick("outcome", ["approved", "rejected", "all"] as const),
     urgency: pick("urgency", ["urgent", "normal", "all"] as const),
     analyst: sp.get("analyst") || undefined,
+    evidence: sp.get("evidence") === "1",
     from: DATE.test(sp.get("from") ?? "") ? sp.get("from")! : undefined,
     to: DATE.test(sp.get("to") ?? "") ? sp.get("to")! : undefined,
     offset: Number(sp.get("offset")) || 0,

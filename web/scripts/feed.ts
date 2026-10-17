@@ -12,7 +12,7 @@
    con el secreto de "Protection Bypass for Automation" del proyecto. */
 import { fakeEvent, mockEventsSince } from "@/lib/payments/mock";
 import { explainDecision } from "@/lib/payments/decision";
-import { urgencyReason, typeInfo } from "@/lib/payments/catalog";
+import { needsReview, urgencyReason, typeInfo } from "@/lib/payments/catalog";
 import { money } from "@/lib/payments/format";
 import type { PaymentEvent } from "@/lib/payments/types";
 
@@ -33,7 +33,8 @@ const hhmmss = () => new Date().toLocaleTimeString("es-PE", { hour12: false });
 function line(e: PaymentEvent) {
   const u = urgencyReason(e);
   const t = typeInfo(e.type).label.padEnd(11);
-  return `  ${t} ${money(e.data.amount, e.data.currency).padStart(13)}  ${e.data.customer.name.padEnd(14)} ${e.id}${u ? `  ⚠ ${u}` : ""}`;
+  const dest = needsReview(e) ? `→ Pendientes${u ? ` ⚠ ${u}` : ""}` : "· calificado por el agente";
+  return `  ${t} ${money(e.data.amount, e.data.currency).padStart(13)}  ${e.data.customer.name.padEnd(14)} ${e.id}  ${dest}`;
 }
 
 async function send(events: PaymentEvent[]) {

@@ -117,13 +117,14 @@ export function explainDecision(e: PaymentEvent): Decision {
       }
       break;
     case "payment.pending":
-      engineNote("Retenido hasta que el emisor confirme");
+      engineNote(`Puntaje ${d.risk_score} en zona de revisión (40–69): enviado a la bandeja`);
+      audit.push({ at: at(-600), actor: "Sistema", action: `Caso asignado a ${ANALYST.name}`, hash: hash() });
       dec = {
-        outcome: "warn", verdict: "Retenido: esperando confirmación",
-        decidedBy: { kind: "external", name: d.method === "transfer" ? d.brand : "Emisor de la tarjeta", detail: d.method === "transfer" ? "Confirmación bancaria" : "3-D Secure" },
+        outcome: "warn", verdict: "En revisión: requiere decisión de un analista",
+        decidedBy: { kind: "auto", name: ENGINE, detail: "Puntaje entre el umbral de revisión y el de bloqueo" },
         accountable: { name: ANALYST.name, role: ANALYST.role },
-        confidence: null, policy: "POL-PAGOS-02 · Retención por autenticación pendiente",
-        appeal: "Se resuelve solo al llegar el siguiente evento; si pasan 30 min, escala a analista.",
+        confidence: 40 + Math.floor(r() * 30), policy: "POL-RIESGO-04 · Revisión manual de casos sin calificar",
+        appeal: "Lo decide un analista desde Pendientes; queda registrado a su nombre.",
       };
       break;
     case "payment.failed":

@@ -18,7 +18,9 @@ export const pool = () => (g.__pgPool ??= new Pool({ connectionString: connectio
 
 /* events: cada caso recibido con su contexto. status = open hasta que un analista lo marca (archivado).
    resolutions: una por caso, con quién, cuándo y la nota.
-   notifications: cola de salida; el canal está por definir, así que todo queda en 'queued'. */
+   notifications: cola de salida; el canal está por definir, así que todo queda en 'queued'.
+   evidence: casos rechazados que el analista archivó como evidencia (categoría + indicadores + foto del caso)
+             para alimentar análisis de riesgo futuros (listas de bloqueo, reentrenar reglas). */
 const SCHEMA = `
 create table if not exists events (
   seq            bigserial primary key,
@@ -55,6 +57,36 @@ create table if not exists notifications (
   created_at    timestamptz not null default now(),
   sent_at       timestamptz
 );
+
+create table if not exists evidence (
+  id            bigserial primary key,
+  event_id      text not null unique references events(id),
+  resolution_id bigint not null references resolutions(id),
+  category      text not null,
+  indicators    text[] not null default '{}',
+  snapshot      jsonb not null,
+  actor_email   text not null,
+  at            timestamptz not null default now()
+);
+create index if not exists evidence_category_idx on evidence (category, at desc);
+
+-- Solo la zona de revisión (40 ≤ riesgo < 70) queda abierta; el resto lo califica el agente a su nombre.
+-- Idempotente; misma regla que THRESHOLDS, needsReview() y agentAction() en src/lib/payments/catalog.ts
+-- 1) Reabre lo que el agente archivó con una regla anterior pero cae en la zona de revisión
+with r as (
+  delete from resolutions r using events e
+  where r.event_id = e.id and r.actor_email = 'agente@sistema' and (e.data->>'risk_score')::int between 40 and 69
+  returning e.id
+)
+update events set status = 'open' where id in (select id from r);
+-- 2) Archiva a nombre del agente lo abierto fuera de la zona de revisión
+with x as (
+  update events set status = case when (data->>'risk_score')::int >= 70 then 'rejected' else 'approved' end
+  where status = 'open' and (data->>'risk_score')::int not between 40 and 69
+  returning id, status
+)
+insert into resolutions (event_id, action, note, actor_email, actor_name, actor_role)
+select id, status, 'Calificado por el agente al recibirlo', 'agente@sistema', 'Agente antifraude', 'Agente automático' from x;
 `;
 
 export function ready() {
