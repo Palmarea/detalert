@@ -1,0 +1,1507 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AML Scoring API",
+    "description": "Scoring de transacciones y casos para el agente investigador y la bandeja del analista.\n\n**Regla del contrato:** el agente puede subir la banda que devuelve el modelo, nunca bajarla.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "sistema"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/score/transactions": {
+      "post": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Score Transactions",
+        "description": "Score calibrado, banda, familia y reason codes por transacción.",
+        "operationId": "score_transactions_score_transactions_post",
+        "parameters": [
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScoreRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases": {
+      "get": {
+        "tags": [
+          "casos"
+        ],
+        "summary": "List Cases",
+        "description": "Casos ordenados por prioridad. La banda depende del `mode` (capacidad de analistas).",
+        "operationId": "list_cases_cases_get",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Mode",
+              "default": "normal"
+            }
+          },
+          {
+            "name": "band",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Band"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Band"
+            }
+          },
+          {
+            "name": "family",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Family"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}": {
+      "get": {
+        "tags": [
+          "casos"
+        ],
+        "summary": "Get Case",
+        "operationId": "get_case_cases__case_id__get",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Mode",
+              "default": "normal"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/score/account/{account}": {
+      "get": {
+        "tags": [
+          "scoring"
+        ],
+        "summary": "Account Score",
+        "operationId": "account_score_score_account__account__get",
+        "parameters": [
+          {
+            "name": "account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Account"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "To"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountScore"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/thresholds": {
+      "get": {
+        "tags": [
+          "modelo"
+        ],
+        "summary": "Thresholds",
+        "description": "Puntos de operación (normal / capacidad reducida / sin analista) con su costo esperado.",
+        "operationId": "thresholds_thresholds_get",
+        "parameters": [
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Thresholds"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/model/metrics": {
+      "get": {
+        "tags": [
+          "modelo"
+        ],
+        "summary": "Metrics",
+        "operationId": "metrics_model_metrics_get",
+        "parameters": [
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelMetrics"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/{txn_id}": {
+      "get": {
+        "tags": [
+          "trazabilidad"
+        ],
+        "summary": "Audit",
+        "description": "Registro completo: snapshot de features, score crudo y calibrado, versiones.",
+        "operationId": "audit_audit__txn_id__get",
+        "parameters": [
+          {
+            "name": "txn_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Txn Id"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback": {
+      "post": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "Feedback",
+        "description": "Decisión del agente o del analista. Rechaza (422) si el agente intenta bajar la banda del modelo.",
+        "operationId": "feedback_feedback_post",
+        "parameters": [
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackAck"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountScore": {
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "examples": [
+              "binary_v1"
+            ]
+          },
+          "threshold_version": {
+            "type": "string",
+            "title": "Threshold Version",
+            "examples": [
+              "thresholds_v1"
+            ]
+          },
+          "account": {
+            "type": "string",
+            "title": "Account"
+          },
+          "window_start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window Start"
+          },
+          "window_end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window End"
+          },
+          "n_transactions": {
+            "type": "integer",
+            "title": "N Transactions"
+          },
+          "max_p_laundering": {
+            "type": "number",
+            "title": "Max P Laundering"
+          },
+          "mean_p_laundering": {
+            "type": "number",
+            "title": "Mean P Laundering"
+          },
+          "n_flagged": {
+            "type": "integer",
+            "title": "N Flagged"
+          },
+          "band": {
+            "$ref": "#/components/schemas/Band"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version",
+          "threshold_version",
+          "account",
+          "window_start",
+          "window_end",
+          "n_transactions",
+          "max_p_laundering",
+          "mean_p_laundering",
+          "n_flagged",
+          "band"
+        ],
+        "title": "AccountScore"
+      },
+      "Actor": {
+        "type": "string",
+        "enum": [
+          "agent",
+          "analyst"
+        ],
+        "title": "Actor"
+      },
+      "AuditRecord": {
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "examples": [
+              "binary_v1"
+            ]
+          },
+          "threshold_version": {
+            "type": "string",
+            "title": "Threshold Version",
+            "examples": [
+              "thresholds_v1"
+            ]
+          },
+          "txn_id": {
+            "type": "integer",
+            "title": "Txn Id"
+          },
+          "scored_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Scored At"
+          },
+          "features_snapshot": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Features Snapshot"
+          },
+          "score_raw": {
+            "type": "number",
+            "title": "Score Raw"
+          },
+          "p_laundering": {
+            "type": "number",
+            "title": "P Laundering"
+          },
+          "band": {
+            "$ref": "#/components/schemas/Band"
+          },
+          "family": {
+            "$ref": "#/components/schemas/Family"
+          },
+          "reason_codes": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonCode"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version",
+          "threshold_version",
+          "txn_id",
+          "scored_at",
+          "features_snapshot",
+          "score_raw",
+          "p_laundering",
+          "band",
+          "family",
+          "reason_codes"
+        ],
+        "title": "AuditRecord"
+      },
+      "Band": {
+        "type": "string",
+        "enum": [
+          "auto_close_eligible",
+          "review",
+          "high_priority"
+        ],
+        "title": "Band"
+      },
+      "CaseDetail": {
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "examples": [
+              "binary_v1"
+            ]
+          },
+          "threshold_version": {
+            "type": "string",
+            "title": "Threshold Version",
+            "examples": [
+              "thresholds_v1"
+            ]
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id",
+            "examples": [
+              "C-8724731955-2023-06-05"
+            ]
+          },
+          "account": {
+            "type": "string",
+            "title": "Account"
+          },
+          "window_start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window Start"
+          },
+          "window_end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window End"
+          },
+          "n_transactions": {
+            "type": "integer",
+            "title": "N Transactions"
+          },
+          "n_flagged": {
+            "type": "integer",
+            "title": "N Flagged"
+          },
+          "total_amount_flagged": {
+            "type": "number",
+            "title": "Total Amount Flagged"
+          },
+          "case_score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Case Score",
+            "description": "Probabilidad calibrada a nivel caso"
+          },
+          "band": {
+            "$ref": "#/components/schemas/Band"
+          },
+          "family": {
+            "$ref": "#/components/schemas/Family"
+          },
+          "priority_rank": {
+            "type": "integer",
+            "title": "Priority Rank",
+            "description": "1 = el más urgente dentro del modo pedido"
+          },
+          "transactions": {
+            "items": {
+              "$ref": "#/components/schemas/TxnScore"
+            },
+            "type": "array",
+            "title": "Transactions"
+          },
+          "top_reason_codes": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonCode"
+            },
+            "type": "array",
+            "title": "Top Reason Codes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version",
+          "threshold_version",
+          "case_id",
+          "account",
+          "window_start",
+          "window_end",
+          "n_transactions",
+          "n_flagged",
+          "total_amount_flagged",
+          "case_score",
+          "band",
+          "family",
+          "priority_rank",
+          "transactions",
+          "top_reason_codes"
+        ],
+        "title": "CaseDetail"
+      },
+      "CaseList": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/Mode"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/CaseSummary"
+            },
+            "type": "array",
+            "title": "Cases"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "total",
+          "cases"
+        ],
+        "title": "CaseList"
+      },
+      "CaseSummary": {
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "examples": [
+              "binary_v1"
+            ]
+          },
+          "threshold_version": {
+            "type": "string",
+            "title": "Threshold Version",
+            "examples": [
+              "thresholds_v1"
+            ]
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id",
+            "examples": [
+              "C-8724731955-2023-06-05"
+            ]
+          },
+          "account": {
+            "type": "string",
+            "title": "Account"
+          },
+          "window_start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window Start"
+          },
+          "window_end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window End"
+          },
+          "n_transactions": {
+            "type": "integer",
+            "title": "N Transactions"
+          },
+          "n_flagged": {
+            "type": "integer",
+            "title": "N Flagged"
+          },
+          "total_amount_flagged": {
+            "type": "number",
+            "title": "Total Amount Flagged"
+          },
+          "case_score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Case Score",
+            "description": "Probabilidad calibrada a nivel caso"
+          },
+          "band": {
+            "$ref": "#/components/schemas/Band"
+          },
+          "family": {
+            "$ref": "#/components/schemas/Family"
+          },
+          "priority_rank": {
+            "type": "integer",
+            "title": "Priority Rank",
+            "description": "1 = el más urgente dentro del modo pedido"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version",
+          "threshold_version",
+          "case_id",
+          "account",
+          "window_start",
+          "window_end",
+          "n_transactions",
+          "n_flagged",
+          "total_amount_flagged",
+          "case_score",
+          "band",
+          "family",
+          "priority_rank"
+        ],
+        "title": "CaseSummary"
+      },
+      "Decision": {
+        "type": "string",
+        "enum": [
+          "auto_closed",
+          "escalated",
+          "high_priority",
+          "approved",
+          "rejected",
+          "sar_filed"
+        ],
+        "title": "Decision"
+      },
+      "Family": {
+        "type": "string",
+        "enum": [
+          "structuring",
+          "layering",
+          "concentration",
+          "cash",
+          "behavioural",
+          "generic"
+        ],
+        "title": "Family"
+      },
+      "FeedbackAck": {
+        "properties": {
+          "feedback_id": {
+            "type": "string",
+            "title": "Feedback Id"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Received At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "feedback_id",
+          "received_at"
+        ],
+        "title": "FeedbackAck"
+      },
+      "FeedbackIn": {
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/Actor"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/Decision"
+          },
+          "agent_band": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Band"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Banda final del agente (solo puede ser >= la del modelo)"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "case_id",
+          "actor",
+          "decision"
+        ],
+        "title": "FeedbackIn"
+      },
+      "FunnelStage": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "n_in": {
+            "type": "integer",
+            "title": "N In"
+          },
+          "n_out": {
+            "type": "integer",
+            "title": "N Out"
+          },
+          "positives_out": {
+            "type": "integer",
+            "title": "Positives Out"
+          },
+          "leakage": {
+            "type": "number",
+            "title": "Leakage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "n_in",
+          "n_out",
+          "positives_out",
+          "leakage"
+        ],
+        "title": "FunnelStage"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Health": {
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "examples": [
+              "binary_v1"
+            ]
+          },
+          "threshold_version": {
+            "type": "string",
+            "title": "Threshold Version",
+            "examples": [
+              "thresholds_v1"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "examples": [
+              "ok"
+            ]
+          },
+          "backend": {
+            "type": "string",
+            "title": "Backend",
+            "examples": [
+              "mock"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version",
+          "threshold_version",
+          "status",
+          "backend"
+        ],
+        "title": "Health"
+      },
+      "Mode": {
+        "type": "string",
+        "enum": [
+          "normal",
+          "reduced_capacity",
+          "no_analyst"
+        ],
+        "title": "Mode"
+      },
+      "ModelMetrics": {
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "examples": [
+              "binary_v1"
+            ]
+          },
+          "threshold_version": {
+            "type": "string",
+            "title": "Threshold Version",
+            "examples": [
+              "thresholds_v1"
+            ]
+          },
+          "sample": {
+            "type": "string",
+            "title": "Sample",
+            "examples": [
+              "oot"
+            ]
+          },
+          "gini": {
+            "type": "number",
+            "title": "Gini"
+          },
+          "ks": {
+            "type": "number",
+            "title": "Ks"
+          },
+          "pr_auc": {
+            "type": "number",
+            "title": "Pr Auc"
+          },
+          "recall_at_1pct": {
+            "type": "number",
+            "title": "Recall At 1Pct"
+          },
+          "baseline_gini": {
+            "type": "number",
+            "title": "Baseline Gini"
+          },
+          "recall_by_typology": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Recall By Typology"
+          },
+          "funnel": {
+            "items": {
+              "$ref": "#/components/schemas/FunnelStage"
+            },
+            "type": "array",
+            "title": "Funnel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version",
+          "threshold_version",
+          "sample",
+          "gini",
+          "ks",
+          "pr_auc",
+          "recall_at_1pct",
+          "baseline_gini",
+          "recall_by_typology",
+          "funnel"
+        ],
+        "title": "ModelMetrics"
+      },
+      "OperatingPoint": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/Mode"
+          },
+          "analyst_capacity_pct": {
+            "type": "integer",
+            "title": "Analyst Capacity Pct",
+            "examples": [
+              100
+            ]
+          },
+          "auto_close_threshold": {
+            "type": "number",
+            "title": "Auto Close Threshold",
+            "description": "case_score por debajo -> auto_close_eligible"
+          },
+          "high_priority_threshold": {
+            "type": "number",
+            "title": "High Priority Threshold"
+          },
+          "auto_close_rate": {
+            "type": "number",
+            "title": "Auto Close Rate",
+            "description": "% de casos que se cierran solos"
+          },
+          "expected_leakage": {
+            "type": "number",
+            "title": "Expected Leakage",
+            "description": "% de casos auto-cerrados que eran lavado"
+          },
+          "queue_cases_per_day": {
+            "type": "number",
+            "title": "Queue Cases Per Day"
+          },
+          "preventive_hold": {
+            "type": "boolean",
+            "title": "Preventive Hold",
+            "description": "True: high_priority retiene la transacción mientras no haya analista"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "analyst_capacity_pct",
+          "auto_close_threshold",
+          "high_priority_threshold",
+          "auto_close_rate",
+          "expected_leakage",
+          "queue_cases_per_day",
+          "preventive_hold"
+        ],
+        "title": "OperatingPoint"
+      },
+      "ReasonCode": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "examples": [
+              "NEW_COUNTERPARTY"
+            ]
+          },
+          "feature": {
+            "type": "string",
+            "title": "Feature",
+            "examples": [
+              "is_new_counterparty"
+            ]
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "examples": [
+              1
+            ]
+          },
+          "contribution": {
+            "type": "number",
+            "title": "Contribution",
+            "description": "Contribución SHAP al log-odds",
+            "examples": [
+              2.31
+            ]
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "examples": [
+              "Primera transacción hacia esta contraparte"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "feature",
+          "value",
+          "contribution",
+          "text"
+        ],
+        "title": "ReasonCode"
+      },
+      "ScoreRequest": {
+        "properties": {
+          "txn_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Txn Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "txn_ids"
+        ],
+        "title": "ScoreRequest"
+      },
+      "ScoreResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/TxnScore"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "not_found": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Not Found",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "title": "ScoreResponse"
+      },
+      "Thresholds": {
+        "properties": {
+          "threshold_version": {
+            "type": "string",
+            "title": "Threshold Version"
+          },
+          "alert_threshold": {
+            "type": "number",
+            "title": "Alert Threshold",
+            "description": "p_laundering mínima para que una transacción entre a un caso"
+          },
+          "operating_points": {
+            "items": {
+              "$ref": "#/components/schemas/OperatingPoint"
+            },
+            "type": "array",
+            "title": "Operating Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "threshold_version",
+          "alert_threshold",
+          "operating_points"
+        ],
+        "title": "Thresholds"
+      },
+      "TxnScore": {
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "examples": [
+              "binary_v1"
+            ]
+          },
+          "threshold_version": {
+            "type": "string",
+            "title": "Threshold Version",
+            "examples": [
+              "thresholds_v1"
+            ]
+          },
+          "txn_id": {
+            "type": "integer",
+            "title": "Txn Id"
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          },
+          "sender_account": {
+            "type": "string",
+            "title": "Sender Account"
+          },
+          "receiver_account": {
+            "type": "string",
+            "title": "Receiver Account"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          },
+          "payment_type": {
+            "type": "string",
+            "title": "Payment Type"
+          },
+          "p_laundering": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "P Laundering"
+          },
+          "band": {
+            "$ref": "#/components/schemas/Band"
+          },
+          "family": {
+            "$ref": "#/components/schemas/Family"
+          },
+          "family_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Family Confidence"
+          },
+          "reason_codes": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonCode"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version",
+          "threshold_version",
+          "txn_id",
+          "ts",
+          "sender_account",
+          "receiver_account",
+          "amount",
+          "payment_type",
+          "p_laundering",
+          "band",
+          "family",
+          "family_confidence",
+          "reason_codes"
+        ],
+        "title": "TxnScore"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
