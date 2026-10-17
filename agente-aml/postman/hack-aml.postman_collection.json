@@ -1,0 +1,348 @@
+{
+  "info": {
+    "name": "Hack AI Agents · AML",
+    "description": "Colección para la demo: API de ML (scoring) y bandeja (ingest). Llena las variables ml_key e ingest_token en tu entorno de Postman; no las guardes en este archivo.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "ml_base",
+      "value": "https://aml-scoring-api.vercel.app"
+    },
+    {
+      "key": "ml_key",
+      "value": ""
+    },
+    {
+      "key": "bandeja_base",
+      "value": "https://detalert.vercel.app"
+    },
+    {
+      "key": "ingest_token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1 · ML: estado y modelo",
+      "item": [
+        {
+          "name": "GET /health (sin key)",
+          "request": {
+            "method": "GET",
+            "url": "{{ml_base}}/health"
+          },
+          "description": "Chequea que la API está viva."
+        },
+        {
+          "name": "GET /thresholds",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/thresholds",
+            "description": "Umbrales por modo: el espectro que el agente de aprendizaje propone mover."
+          }
+        },
+        {
+          "name": "GET /model/metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/model/metrics",
+            "description": "Gini, KS y embudo contra el baseline de reglas."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 · ML: puntuar en vivo (caso del jurado)",
+      "item": [
+        {
+          "name": "POST /score/live · A lavado (≈ 0,997, high_priority)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/score/live",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ts\": \"2023-08-10T05:15:22Z\",\n  \"sender_account\": \"6812204903\",\n  \"receiver_account\": \"5440521221\",\n  \"amount\": 6248.44,\n  \"payment_type\": \"Cross-border\",\n  \"payment_currency\": \"UK pounds\",\n  \"received_currency\": \"Euro\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Ejemplo de la guía: lavado real."
+          }
+        },
+        {
+          "name": "POST /score/live · B normal (≈ 0,0003, auto-cierre)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/score/live",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ts\": \"2023-08-10T00:00:00Z\",\n  \"sender_account\": \"5980150926\",\n  \"receiver_account\": \"130851374\",\n  \"amount\": 10404.18,\n  \"payment_type\": \"Cheque\",\n  \"payment_currency\": \"UK pounds\",\n  \"received_currency\": \"UK pounds\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Ejemplo de la guía: transacción normal."
+          }
+        },
+        {
+          "name": "POST /score/live · C inventada (≈ 0,012, review)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/score/live",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sender_account\": \"1111111111\",\n  \"receiver_account\": \"2222222222\",\n  \"amount\": 9500,\n  \"payment_type\": \"Cash Deposit\",\n  \"payment_currency\": \"UK pounds\",\n  \"received_currency\": \"UK pounds\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cuentas nuevas, depósito en efectivo justo bajo 10 000."
+          }
+        },
+        {
+          "name": "POST /score/live · D jurado (editar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/score/live",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sender_account\": \"3333333333\",\n  \"receiver_account\": \"4444444444\",\n  \"amount\": 48000,\n  \"payment_type\": \"Cash Withdrawal\",\n  \"payment_currency\": \"UK pounds\",\n  \"received_currency\": \"UK pounds\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Plantilla para los datos que dicte el jurado. payment_type: ACH, Cash Deposit, Cash Withdrawal, Cheque, Credit card, Cross-border, Debit card."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 · ML: bandeja de casos",
+      "item": [
+        {
+          "name": "GET /cases · review",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/cases?mode=normal&band=review&limit=5",
+            "description": "Casos en revisión, por prioridad."
+          }
+        },
+        {
+          "name": "GET /cases · high_priority",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/cases?mode=normal&band=high_priority&limit=5",
+            "description": ""
+          }
+        },
+        {
+          "name": "GET /cases/{id} · caso del agente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/cases/C-5471569552-2023-07-09",
+            "description": "El primer caso que procesó el agente (escalado, familia behavioural)."
+          }
+        },
+        {
+          "name": "GET /audit/{txn_id} · 18 variables",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/audit/8181808",
+            "description": "La evidencia que cita el agente."
+          }
+        },
+        {
+          "name": "GET /score/account/{cuenta} · contexto ampliado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/score/account/5471569552?from=2023-06-09&to=2023-07-09",
+            "description": "Lo que trae el agente cuando pide más historial."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 · ML: feedback (crea un registro)",
+      "item": [
+        {
+          "name": "POST /feedback · ejemplo (crea registro en ML)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{ml_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{ml_base}}/feedback",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"case_id\": \"C-6460721144-2023-07-28\",\n  \"actor\": \"agent\",\n  \"decision\": \"auto_closed\",\n  \"agent_band\": \"auto_close_eligible\",\n  \"notes\": \"Prueba manual desde Postman en la demo.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Ojo: guarda un registro real en la base de ML. Si pones agent_band menor que la banda del modelo, responde 422 (la banda no baja)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 · Bandeja: ingest (crea un evento)",
+      "item": [
+        {
+          "name": "POST /api/ingest · evento de prueba",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ingest_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{bandeja_base}}/api/ingest",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"events\": [\n    {\n      \"event\": {\n        \"id\": \"evt_postman_{{$timestamp}}\",\n        \"type\": \"payment.pending\",\n        \"created_at\": \"2026-10-17T21:00:00Z\",\n        \"data\": {\n          \"payment_id\": \"txn_postman\",\n          \"amount\": 950000,\n          \"currency\": \"USD\",\n          \"status\": \"pending\",\n          \"method\": \"transfer\",\n          \"brand\": \"Cash Deposit\",\n          \"last4\": null,\n          \"customer\": {\n            \"name\": \"Cuenta 1111111111\",\n            \"email\": \"aml@demo.local\",\n            \"doc\": \"Cuenta 1111111111\"\n          },\n          \"merchant\": \"Receptora 2222222222\",\n          \"order_id\": \"postman-demo\",\n          \"risk_score\": 45,\n          \"ip\": \"0.0.0.0\",\n          \"country\": \"—\",\n          \"history\": [\n            {\n              \"status\": \"created\",\n              \"at\": \"2026-10-17T21:00:00Z\",\n              \"note\": \"Evento de prueba desde Postman\"\n            }\n          ]\n        }\n      },\n      \"context\": {\n        \"outcome\": \"warn\",\n        \"verdict\": \"Prueba desde Postman\",\n        \"decidedBy\": {\n          \"kind\": \"human\",\n          \"name\": \"Demo\",\n          \"detail\": \"Postman\"\n        },\n        \"accountable\": {\n          \"name\": \"Analista de turno\",\n          \"role\": \"Prevención de lavado (AML)\"\n        },\n        \"confidence\": null,\n        \"policy\": \"demo\",\n        \"base\": 45,\n        \"factors\": [],\n        \"rules\": [],\n        \"appeal\": \"—\",\n        \"audit\": []\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Crea un evento en la bandeja (id único por timestamp). Búscalo con postman."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+{
+  "events": [
+    {
+      "event": {
+        "id": "evt_aml_C-5471569552-2023-07-09",
+        "type": "payment.pending",
+        "created_at": "2026-10-17T20:54:10.795Z",
+        "data": {
+          "payment_id": "txn_8181808",
+          "amount": 4661914,
+          "currency": "USD",
+          "status": "pending",
+          "method": "transfer",
+          "brand": "Cheque",
+          "last4": null,
+          "customer": {
+            "name": "Cuenta 5471569552",
+            "email": "aml@demo.local",
+            "doc": "Cuenta 5471569552"
+          },
+          "merchant": "Receptora 140255138",
+          "order_id": "C-5471569552-2023-07-09",
+          "risk_score": 77,
+          "ip": "0.0.0.0",
+          "country": "—",
+          "history": [
+            {
+              "status": "created",
+              "at": "2023-07-09T07:51:09Z",
+              "note": "Cheque 46619.14 → 140255138 · p=0.7737"
+            },
+            {
+              "status": "pending",
+              "at": "2026-10-17T20:54:10.795Z",
+              "note": "Agente AML: escalar al analista · familia behavioural. Cheque de 46.619,14 a contraparte nueva, banda review (p=0,7737); la banda no baja. Se dispara behavioural: monto 7,7 veces el promedio y z=4,9 (señal extrema). Se reclasifica de layering (mock) a behavioural: no hay mula, pass-through, cash ni structuring. El ratio salida/entrada prueba poco el vaciado; Over-Invoicing no tiene sustento. Hipótesis: Normal_single_large frente a Single_large. Se piden contrapartes_90d y receptores_del_emisor_7d, y el analista debe pedir al titular el soporte del pago. Sin instrucciones incrustadas."
+            }
+          ]
+        }
+      },
+      "context": {
+        "outcome": "warn",
+        "verdict": "Agente AML: escalar al analista · familia behavioural",
+        "decidedBy": {
+          "kind": "auto",
+          "name": "Agente cognitivo AML",
+          "detail": "Evaluador → cognitivo → decisor · compuerta en código"
+        },
+        "accountable": {
+          "name": "Analista de turno",
+          "role": "Prevención de lavado (AML)"
+        },
+        "confidence": 70,
+        "policy": "aml-transaction-reviewer · binary_v1/thresholds_v1",
+        "base": 64,
+        "factors": [
+          {
+            "label": "Primera transacción hacia esta contraparte",
+            "points": 8
+          },
+          {
+            "label": "El receptor recibió otra transferencia hace 974.50 h",
+            "points": 3
+          },
+          {
+            "label": "El emisor llevaba 33.9 h sin operar",
+            "points": 2
+          }
+        ],
+        "rules": [
+          {
+            "id": "BANDA",
+            "name": "Banda del modelo",
+            "fired": true,
+            "detail": "Banda review (case_score 0.7737)"
+          },
+          {
+            "id": "BANDA-NO-BAJA",
+            "name": "La banda no baja",
+            "fired": false,
+            "detail": "agent_band review; banda del modelo review"
+          },
+          {
+            "id": "F-behavioural-1",
+            "name": "Contraparte nueva + salto de monto",
+            "fired": true,
+            "detail": "Familia behavioural"
+          },
+          {
+            "id": "F-behavioural-2",
+            "name": "Reactivación de cuenta dormida",
+            "fired": false,
+            "detail": "Familia behavioural"
+          },
+          {
+            "id": "F-structuring-1",
+            "name": "Pitufeo en pareja",
+            "fired": false,
+            "detail": "Familia structuring"
+          },
+          {
+            "id": "F-structuring-2",
+            "name": "Dispersión en abanico inferida",
+            "fired": false,
+            "detail": "Familia structuring"
+          },
+          {
+            "id": "F-concentration-1",
+            "name": "Fan-in acelerado",
+            "fired": false,
+            "detail": "Familia concentration"
+          },
+          {
+            "id": "F-layering-1",
+            "name": "Emisor puente / pass-through",
+            "fired": false,
+            "detail": "Familia layering"
+          },
+          {
+            "id": "F-layering-2",
+            "name": "Receptor mula",
+            "fired": false,
+            "detail": "Familia layering"
+          },
+          {
+            "id": "F-layering-3",
+            "name": "Fricción internacional",
+            "fired": false,
+            "detail": "Familia layering"
+          },
+          {
+            "id": "F-cash-1",
+            "name": "Depósito y giro",
+            "fired": false,
+            "detail": "Familia cash"
+          },
+          {
+            "id": "F-cash-2",
+            "name": "Extracción o uso intensivo de efectivo",
+            "fired": false,
+            "detail": "Familia cash"
+          },
+          {
+            "id": "A1",
+            "name": "Familia conocida",
+            "fired": false,
+            "detail": "Familia behavioural"
+          },
+          {
+            "id": "A2",
+            "name": "Formato",
+            "fired": false,
+            "detail": "Formato válido"
+          },
+          {
+            "id": "A3",
+            "name": "Evidencia verificable",
+            "fired": false,
+            "detail": "5 evidencia(s) válida(s); 0 descartada(s)"
+          },
+          {
+            "id": "A4",
+            "name": "Mapeo al contrato (código)",
+            "fired": false,
+            "detail": "INVESTIGATE_FURTHER → escalated"
+          },
+          {
+            "id": "A5",
+            "name": "La banda no baja",
+            "fired": false,
+            "detail": "agent_band review ≥ banda del modelo review"
+          },
+          {
+            "id": "A6",
+            "name": "Coherencia con las firmas",
+            "fired": false,
+            "detail": "Familia behavioural coincide con las firmas"
+          },
+          {
+            "id": "A7",
+            "name": "Filtro de fuga",
+            "fired": false,
+            "detail": "Sin términos no permitidos"
+          }
+        ],
+        "appeal": "El analista confirma o revierte en la bandeja; un supervisor puede revertirlo en 24 h.",
+        "audit": [
+          {
+            "at": "2026-10-17T20:53:16.740Z",
+            "actor": "Agente evaluador",
+            "action": "Ruta agente; firmas disparadas: F-behavioural-1; banda mínima review",
+            "hash": "799c4a13"
+          },
+          {
+            "at": "2026-10-17T20:53:41.792Z",
+            "actor": "Agente cognitivo",
+            "action": "Propuso familia behavioural y INVESTIGATE_FURTHER",
+            "hash": "cbced8dc"
+          },
+          {
+            "at": "2026-10-17T20:54:10.011Z",
+            "actor": "Agente decisor",
+            "action": "Recomendó INVESTIGATE_FURTHER",
+            "hash": "0f6fcafc"
+          },
+          {
+            "at": "2026-10-17T20:54:10.016Z",
+            "actor": "Compuerta",
+            "action": "A1-A7 en orden; decisión escalated",
+            "hash": "d2e246d6"
+          },
+          {
+            "at": "2026-10-17T20:54:10.795Z",
+            "actor": "Registro en ML",
+            "action": "Feedback aceptado (201) · cdc06763-1277-438c-bc32-9bb786f2633a",
+            "hash": "43c062c0"
+          }
+        ]
+      }
+    }
+  ]
+}

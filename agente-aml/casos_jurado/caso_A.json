@@ -1,0 +1,9 @@
+{
+  "ts": "2023-08-10T05:15:22Z",
+  "sender_account": "6812204903",
+  "receiver_account": "5440521221",
+  "amount": 6248.44,
+  "payment_type": "Cross-border",
+  "payment_currency": "UK pounds",
+  "received_currency": "Euro"
+}

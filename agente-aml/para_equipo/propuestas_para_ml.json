@@ -1,0 +1,63 @@
+{
+  "generado": "2026-10-17T21:24:18.366Z",
+  "threshold_version": "thresholds_v1",
+  "nota": "Propuestas del agente AML; los umbrales de banda los decide y cambia el equipo de ML.",
+  "propuestas_umbral": [],
+  "etiquetas_familia": [
+    {
+      "case_id": "C-1285873873-2023-06-15",
+      "familia_api": "structuring",
+      "familia_inferida": "behavioural"
+    },
+    {
+      "case_id": "C-2231090262-2023-08-11",
+      "familia_api": "structuring",
+      "familia_inferida": "generic"
+    },
+    {
+      "case_id": "C-3049253016-2023-06-09",
+      "familia_api": "cash",
+      "familia_inferida": "normal"
+    },
+    {
+      "case_id": "C-4112229788-2023-07-13",
+      "familia_api": "layering",
+      "familia_inferida": "structuring"
+    },
+    {
+      "case_id": "C-5471569552-2023-07-09",
+      "familia_api": "layering",
+      "familia_inferida": "behavioural"
+    },
+    {
+      "case_id": "C-6324740324-2023-07-28",
+      "familia_api": "cash",
+      "familia_inferida": "normal"
+    },
+    {
+      "case_id": "C-6875184773-2023-07-08",
+      "familia_api": "structuring",
+      "familia_inferida": "behavioural"
+    },
+    {
+      "case_id": "C-7218608806-2023-07-14",
+      "familia_api": "layering",
+      "familia_inferida": "generic"
+    },
+    {
+      "case_id": "C-8060333204-2023-06-13",
+      "familia_api": "cash",
+      "familia_inferida": "normal"
+    },
+    {
+      "case_id": "C-9166883856-2023-06-17",
+      "familia_api": "structuring",
+      "familia_inferida": "behavioural"
+    },
+    {
+      "case_id": "C-990166612-2023-08-22",
+      "familia_api": "layering",
+      "familia_inferida": "behavioural"
+    }
+  ]
+}

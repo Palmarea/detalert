@@ -1,0 +1,90 @@
+{
+  "modo": "aml",
+  "version": "binary_v1-limites-1",
+  "nota": "Límites en código del Agente cognitivo AML. Umbrales tomados del skill (§3) y de la matriz de reglas operativas; si se contradicen, manda la matriz (ver 'contradicciones').",
+  "familias": ["structuring", "layering", "concentration", "cash", "behavioural", "generic", "normal"],
+  "familias_api": ["structuring", "layering", "concentration", "cash", "behavioural", "generic"],
+  "bandas": ["auto_close_eligible", "review", "high_priority"],
+  "acciones": ["APPROVE", "INVESTIGATE_FURTHER", "REJECT"],
+  "decisiones_contrato": ["auto_closed", "escalated", "high_priority"],
+  "mapeo_decisiones": {
+    "APPROVE": { "decision": "auto_closed", "solo_si": "banda del modelo auto_close_eligible y el evaluador no subió la banda mínima", "si_no": "escalated", "nota_si_no": "el agente recomienda aprobar; lo decide el analista" },
+    "INVESTIGATE_FURTHER": { "decision": "escalated" },
+    "REJECT": { "decision": "high_priority", "nota": "retención preventiva; el analista ratifica el reporte" }
+  },
+  "banda_de_decision": { "auto_closed": "auto_close_eligible", "escalated": "review", "high_priority": "high_priority" },
+  "consultas": ["receptores_del_emisor_7d", "salidas_del_receptor_7d", "subgrafo_2_3_saltos", "contrapartes_90d"],
+  "firmas": {
+    "F-behavioural-1": {
+      "familia": "behavioural", "nombre": "Contraparte nueva + salto de monto", "fuente": "skill §3.1",
+      "umbrales": { "is_new_counterparty": 1, "s_amt_ratio_mean_30d_min": 3.0, "s_amt_z_30d_min": 2.5 },
+      "variante_matriz": { "nombre": "Vaciado / anomalía severa", "s_amt_ratio_mean_30d_min": 4.0, "s_amt_z_30d_min": 3.0, "s_out_in_ratio_7d_min": 0.9 }
+    },
+    "F-behavioural-2": {
+      "familia": "behavioural", "nombre": "Reactivación de cuenta dormida", "fuente": "matriz §1 (reemplaza skill §3.1)",
+      "umbrales": { "s_hours_since_prev_min": 720, "ratio_cnt_7d_30d_min": 0.85, "s_cnt_7d_min": 4, "requiere_new_counterparty_o_currency_mismatch": true }
+    },
+    "F-structuring-1": {
+      "familia": "structuring", "nombre": "Pitufeo en pareja", "fuente": "matriz §1 (reemplaza skill §3.2)",
+      "umbrales": { "pair_cnt_7d_min": 3, "s_hours_since_prev_max": 24, "amount_min": 8000, "amount_max_excl": 10000, "s_amt_7d_min": 10000 }
+    },
+    "F-structuring-2": {
+      "familia": "structuring", "nombre": "Dispersión en abanico inferida", "fuente": "matriz §1 (reemplaza skill §3.2)",
+      "umbrales": { "s_cnt_7d_min": 5, "pair_cnt_7d_igual": 1, "ratio_pair_cnt_max": 0.20, "is_new_counterparty": 1, "s_hours_since_prev_max": 6 }
+    },
+    "F-concentration-1": {
+      "familia": "concentration", "nombre": "Fan-in acelerado", "fuente": "matriz §1 (reemplaza skill §3.3)",
+      "umbrales": { "r_uniq_snd_7d_min": 5, "ratio_uniq_7d_30d_min": 0.70, "r_hours_since_prev_max": 4, "is_new_counterparty": 1 }
+    },
+    "F-layering-1": {
+      "familia": "layering", "nombre": "Emisor puente / pass-through", "fuente": "matriz §1 (reemplaza skill §3.4)",
+      "umbrales": { "s_in_cnt_7d_min": 2, "s_out_in_ratio_7d_min": 0.85, "s_out_in_ratio_7d_max": 1.15, "s_hours_since_prev_max": 6, "r_out_cnt_7d_min": 2 }
+    },
+    "F-layering-2": {
+      "familia": "layering", "nombre": "Receptor mula", "fuente": "matriz §1 (reemplaza skill §3.4)",
+      "umbrales": { "r_uniq_snd_7d_min": 3, "r_out_cnt_7d_min": 3, "r_hours_since_prev_max": 4 }
+    },
+    "F-layering-3": {
+      "familia": "layering", "nombre": "Fricción internacional", "fuente": "matriz §1 triangulación transfronteriza (reemplaza skill §3.4)",
+      "umbrales": { "payment_type": "Cross-border", "currency_mismatch": 1, "is_new_counterparty": 1, "s_amt_ratio_mean_30d_min": 2.5 }
+    },
+    "F-cash-1": {
+      "familia": "cash", "nombre": "Depósito y giro", "fuente": "matriz §1 (reemplaza skill §3.5)",
+      "umbrales": { "s_cash_cnt_30d_min": 2, "s_in_cnt_7d_min": 1, "s_out_in_ratio_7d_min": 0.80, "s_hours_since_prev_max": 24 }
+    },
+    "F-cash-2": {
+      "familia": "cash", "nombre": "Extracción o uso intensivo de efectivo", "fuente": "matriz §1 (reemplaza skill §3.5)",
+      "umbrales": { "payment_types": ["Cash Withdrawal", "Cash Deposit"], "s_cash_cnt_30d_min": 5, "s_in_cnt_7d_min": 3, "s_amt_z_30d_min": 2.5 }
+    }
+  },
+  "gobernanza": {
+    "fuente": "matriz §2 (cierre automático por bajo riesgo)",
+    "umbral_critico": { "s_amt_z_30d_min": 4.0 },
+    "senales_extremas": { "s_amt_z_30d_min": 2.5, "r_uniq_snd_7d_min": 5, "s_out_in_ratio_7d_min": 0.8, "s_out_in_ratio_7d_max": 1.2 },
+    "efecto": "Si la banda del modelo es auto_close_eligible y hay una señal extrema o crítica, la banda mínima del agente pasa a review."
+  },
+  "planes_b": {
+    "behavioural": "Vaciado: si el titular no contesta en 15 min, retener 24 h, bloquear canal saliente y, si la banda es high_priority, pasar a REJECT. Reactivación: si no contesta en 15 min, retener 24 h y congelar nuevos envíos del emisor.",
+    "structuring": "Pitufeo: si el analista no revisa en 30 min, retener 24 h y bloquear envíos al mismo receptor. Abanico: si no se acredita nómina en 2 h, retener 24 h y rechazar si p_laundering supera el umbral de high_priority.",
+    "concentration": "Si el receptor no justifica actividad comercial en 12 h: retener 24 h, rechazar la transacción y devolver fondos a origen.",
+    "layering": "Mula: si la consulta del segundo salto tarda más de 5 min, bloqueo duro y congelar 48 h. Pass-through: si el grafo no responde en 10 min, retener 24 h y rechazar si currency_mismatch = 1. Transfronteriza: sin factura o contrato en 24 h, rechazar y retornar fondos.",
+    "cash": "Depósito y giro: sin comprobante de origen lícito en 24 h, rechazar y escalar a Oficialía de Cumplimiento. Efectivo intensivo: si el cliente no valida en 15 min, retener 24 h y restringir operaciones de efectivo.",
+    "generic": "Si ninguna familia domina: conservar generic y escalar al analista AML si la banda no es auto_close_eligible.",
+    "normal": "Zona gris: si el analista no resuelve en 15 min, retención preventiva de 24 h y notificar al cliente."
+  },
+  "contingencia_alta_prioridad": "Si el agente falla en alta prioridad: retención por defecto (REJECT seguro según la matriz); el analista ratifica.",
+  "contradicciones": [
+    "Criterio: la matriz declara que actualiza las reglas del skill, así que es el documento más específico; manda la matriz cuando ambos definen la misma firma con umbrales distintos.",
+    "F-behavioural-1: no hay contradicción; el skill define la firma de familia (ratio >= 3 o z >= 2,5) y la matriz un caso más estrecho (vaciado: ratio >= 4 o z >= 3 y out/in >= 0,9), que se informa como variante.",
+    "F-behavioural-2: skill cnt_7d/cnt_30d >= 0,80; matriz >= 0,85 con s_cnt_7d >= 4 y además contraparte nueva o cambio de moneda. Se usa la matriz.",
+    "F-structuring-1: skill exige monto en [8000, 10000) Y acumulado >= 10000; matriz acepta uno U otro. Se usa la matriz.",
+    "F-structuring-2: skill pair/cnt <= 0,25 y s_hours <= 12 h; matriz <= 0,20 y <= 6 h. Se usa la matriz.",
+    "F-concentration-1: skill r_uniq_7d >= 5 O ratio 7d/30d >= 0,70 con r_hours <= 6 h; matriz exige ambos y r_hours <= 4 h. Se usa la matriz.",
+    "F-layering-1: skill out/in en [0,80, 1,20] y s_hours <= 12 h; matriz [0,85, 1,15], s_hours <= 6 h y r_out_cnt_7d >= 2. Se usa la matriz.",
+    "F-layering-2: skill r_hours <= 6 h; matriz <= 4 h. Se usa la matriz.",
+    "F-layering-3: skill es un agravante (cambio de moneda con Cross-border o bancos distintos); matriz exige Cross-border, cambio de moneda, contraparte nueva y ratio >= 2,5 o bancos distintos. Se usa la matriz; la ubicación de los bancos no llega en las 18 variables, así que solo cuenta el ratio.",
+    "F-cash-1: skill out/in en [0,80, 1,15]; matriz >= 0,80 sin tope. Se usa la matriz.",
+    "F-cash-2: skill (retiro con s_in_cnt_7d >= 2) o (depósito con s_cash_cnt_30d >= 4 y s_hours <= 24 h); matriz retiro o depósito con s_cash_cnt_30d >= 5 y (s_in_cnt_7d >= 3 o z >= 2,5). Se usa la matriz.",
+    "Umbral de cierre: la matriz menciona p_laundering <= 0,02; manda la banda de la API (umbral de thresholds_v1)."
+  ]
+}

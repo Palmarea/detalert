@@ -1,0 +1,367 @@
+{
+  "caso_id": "C-5471569552-2023-07-09",
+  "ruta": "agente",
+  "banda_modelo": "review",
+  "banda_minima": "review",
+  "decision": "escalated",
+  "agent_band": "review",
+  "requiere_persona": true,
+  "accion_agente": "INVESTIGATE_FURTHER",
+  "nota_decision": null,
+  "familia_api": "layering",
+  "familia_inferida": "behavioural",
+  "family_mock_overridden": true,
+  "tipologias": [
+    "Single_large",
+    "Behavioural_Change_1",
+    "Over-Invoicing"
+  ],
+  "tipologia_normal": "Normal_single_large",
+  "evidencia": [
+    {
+      "feature": "s_amt_z_30d",
+      "valor": "4.9009",
+      "interpretacion": "Z-score del monto ≥4 (señal extrema crítica): monto muy atípico frente al historial de 30 días del emisor.",
+      "txn_id": "8181808"
+    },
+    {
+      "feature": "s_amt_ratio_mean_30d",
+      "valor": "7.7141",
+      "interpretacion": "El monto es ~7,7 veces el promedio de 30 días del emisor (umbral behavioural ≥3, matriz ≥4).",
+      "txn_id": "8181808"
+    },
+    {
+      "feature": "is_new_counterparty",
+      "valor": "1",
+      "interpretacion": "Primera transferencia hacia este receptor; principal contribuyente del modelo.",
+      "txn_id": "8181808"
+    },
+    {
+      "feature": "s_out_in_ratio_7d",
+      "valor": "14.6223",
+      "interpretacion": "El emisor envió en 7d ~14,6 veces lo recibido (≥0,90): posible vaciado de cuenta, no calza con pass-through 0,8-1,2.",
+      "txn_id": "8181808"
+    },
+    {
+      "feature": "r_hours_since_prev",
+      "valor": "974.4975",
+      "interpretacion": "Receptor inactivo ~40 días: cuenta receptora dormida o poco usada, sin perfil de fan-in.",
+      "txn_id": "8181808"
+    }
+  ],
+  "descartadas": 0,
+  "objeciones": [
+    {
+      "texto": "Un ratio de 14,6 con s_in_cnt_7d=1 solo indica que el emisor se fondea fuera de la ventana de 7 días. Sin saldo ni ingresos de 30 días no prueba vaciado de cuenta; es una señal débil.",
+      "feature": "s_out_in_ratio_7d"
+    },
+    {
+      "texto": "Over-Invoicing no tiene sustento: es un cheque doméstico, sin divisa distinta ni datos de factura. Hay que quitarla de las tipologías sospechadas.",
+      "feature": "payment_type"
+    },
+    {
+      "texto": "La dispersión en abanico no se dispara: 33,9 h, por encima de 12 h. La consulta receptores_del_emisor_7d solo complementa y no debe pesar como indicio de Fan_Out.",
+      "feature": "s_hours_since_prev"
+    }
+  ],
+  "explicacion_legitima": "Normal_single_large: un pago grande y puntual por cheque a un beneficiario nuevo, como la compra de un bien, un anticipo o un proveedor ocasional. El cheque es trazable, sin cambio de divisa; el emisor opera con regularidad (34 envíos en 30 días) y el receptor no muestra fan-in ni reenvíos.",
+  "mitigantes": [
+    "Instrumento Cheque, con trazabilidad y sin desajuste de divisa (currency_mismatch 0)",
+    "Receptor sin fan-in ni reenvíos (r_uniq_snd_7d 0, r_out_cnt_7d 0): no hay perfil de mula",
+    "Sin repetición del par (pair_cnt_7d 0) ni patrón de pitufeo o dispersión",
+    "Emisor con actividad regular (34 envíos en 30d, 33,9 h desde el envío previo): no es cuenta dormida"
+  ],
+  "context_expansion": {
+    "requires_more_transactions": true,
+    "consultas": [
+      "contrapartes_90d",
+      "receptores_del_emisor_7d"
+    ],
+    "motivo": "Banda review con s_amt_z_30d ≥2: validar contrapartes de 90d (Normal_single_large). Además s_cnt_7d ≥5 y pair_cnt_7d ≤2: descartar dispersión."
+  },
+  "plan_b": "Texto para el analista: si el titular del Sender_account no responde en 15 min, retener 24 h y bloquear el canal saliente; si la banda sube a high_priority, pasar a REJECT (prioridad alta con retención preventiva).",
+  "narrativa": "Cheque de 46.619,14 a contraparte nueva, banda review (p=0,7737); la banda no baja. Se dispara behavioural: monto 7,7 veces el promedio y z=4,9 (señal extrema). Se reclasifica de layering (mock) a behavioural: no hay mula, pass-through, cash ni structuring. El ratio salida/entrada prueba poco el vaciado; Over-Invoicing no tiene sustento. Hipótesis: Normal_single_large frente a Single_large. Se piden contrapartes_90d y receptores_del_emisor_7d, y el analista debe pedir al titular el soporte del pago. Sin instrucciones incrustadas.",
+  "motivo": "Acción del agente: INVESTIGATE_FURTHER",
+  "confianza": 70,
+  "firmas": [
+    {
+      "id": "F-behavioural-1",
+      "familia": "behavioural",
+      "nombre": "Contraparte nueva + salto de monto",
+      "disparada": true,
+      "valores": {
+        "is_new_counterparty": 1,
+        "s_amt_ratio_mean_30d": 7.7141,
+        "s_amt_z_30d": 4.9009,
+        "s_out_in_ratio_7d": 14.6223
+      },
+      "txn_id": "8181808"
+    },
+    {
+      "id": "F-behavioural-2",
+      "familia": "behavioural",
+      "nombre": "Reactivación de cuenta dormida",
+      "disparada": false,
+      "valores": {
+        "s_hours_since_prev": 33.9044,
+        "s_cnt_7d": 10,
+        "s_cnt_30d": 34,
+        "is_new_counterparty": 1,
+        "currency_mismatch": 0,
+        "ratio_cnt_7d_30d": 0.2941
+      },
+      "txn_id": "8181808"
+    },
+    {
+      "id": "F-structuring-1",
+      "familia": "structuring",
+      "nombre": "Pitufeo en pareja",
+      "disparada": false,
+      "valores": {
+        "pair_cnt_7d": 0,
+        "s_hours_since_prev": 33.9044,
+        "amount": 46619.1439,
+        "s_amt_7d": 87283.2
+      },
+      "txn_id": "8181808"
+    },
+    {
+      "id": "F-structuring-2",
+      "familia": "structuring",
+      "nombre": "Dispersión en abanico inferida",
+      "disparada": false,
+      "valores": {
+        "s_cnt_7d": 10,
+        "pair_cnt_7d": 0,
+        "is_new_counterparty": 1,
+        "s_hours_since_prev": 33.9044,
+        "ratio_pair_cnt": 0
+      },
+      "txn_id": "8181808"
+    },
+    {
+      "id": "F-concentration-1",
+      "familia": "concentration",
+      "nombre": "Fan-in acelerado",
+      "disparada": false,
+      "valores": {
+        "r_uniq_snd_7d": 0,
+        "r_uniq_snd_30d": 0,
+        "r_hours_since_prev": 974.4975,
+        "is_new_counterparty": 1,
+        "ratio_uniq_7d_30d": null
+      },
+      "txn_id": "8181808"
+    },
+    {
+      "id": "F-layering-1",
+      "familia": "layering",
+      "nombre": "Emisor puente / pass-through",
+      "disparada": false,
+      "valores": {
+        "s_in_cnt_7d": 1,
+        "s_out_in_ratio_7d": 14.6223,
+        "s_hours_since_prev": 33.9044,
+        "r_out_cnt_7d": 0
+      },
+      "txn_id": "8181808"
+    },
+    {
+      "id": "F-layering-2",
+      "familia": "layering",
+      "nombre": "Receptor mula",
+      "disparada": false,
+      "valores": {
+        "r_uniq_snd_7d": 0,
+        "r_out_cnt_7d": 0,
+        "r_hours_since_prev": 974.4975
+      },
+      "txn_id": "8181808"
+    },
+    {
+      "id": "F-layering-3",
+      "familia": "layering",
+      "nombre": "Fricción internacional",
+      "disparada": false,
+      "valores": {
+        "payment_type": "Cheque",
+        "currency_mismatch": 0,
+        "is_new_counterparty": 1,
+        "s_amt_ratio_mean_30d": 7.7141
+      },
+      "txn_id": "8181808"
+    },
+    {
+      "id": "F-cash-1",
+      "familia": "cash",
+      "nombre": "Depósito y giro",
+      "disparada": false,
+      "valores": {
+        "s_cash_cnt_30d": 3,
+        "s_in_cnt_7d": 1,
+        "s_out_in_ratio_7d": 14.6223,
+        "s_hours_since_prev": 33.9044
+      },
+      "txn_id": "8181808"
+    },
+    {
+      "id": "F-cash-2",
+      "familia": "cash",
+      "nombre": "Extracción o uso intensivo de efectivo",
+      "disparada": false,
+      "valores": {
+        "payment_type": "Cheque",
+        "s_cash_cnt_30d": 3,
+        "s_in_cnt_7d": 1,
+        "s_amt_z_30d": 4.9009
+      },
+      "txn_id": "8181808"
+    }
+  ],
+  "senales_extremas": [
+    {
+      "txn_id": "8181808",
+      "feature": "s_amt_z_30d",
+      "valor": 4.9009,
+      "umbral": ">= 4",
+      "critica": true
+    }
+  ],
+  "compuerta": [
+    {
+      "id": "A1",
+      "ok": true,
+      "detalle": "Familia behavioural"
+    },
+    {
+      "id": "A2",
+      "ok": true,
+      "detalle": "Formato válido"
+    },
+    {
+      "id": "A3",
+      "ok": true,
+      "detalle": "5 evidencia(s) válida(s); 0 descartada(s)"
+    },
+    {
+      "id": "A4",
+      "ok": true,
+      "detalle": "INVESTIGATE_FURTHER → escalated"
+    },
+    {
+      "id": "A5",
+      "ok": true,
+      "detalle": "agent_band review ≥ banda del modelo review"
+    },
+    {
+      "id": "A6",
+      "ok": true,
+      "detalle": "Familia behavioural coincide con las firmas"
+    },
+    {
+      "id": "A7",
+      "ok": true,
+      "detalle": "Sin términos no permitidos"
+    }
+  ],
+  "coherente": true,
+  "contingencia": null,
+  "versiones": {
+    "model_version": "binary_v1",
+    "threshold_version": "thresholds_v1"
+  },
+  "skill": {
+    "nombre": "aml-transaction-reviewer",
+    "version": "0",
+    "sha256_corto": "7fddd953fef8"
+  },
+  "tiempos_ms": {
+    "cognitivo": 20102,
+    "decisor": 26153,
+    "total": 53277
+  },
+  "caso": {
+    "case_id": "C-5471569552-2023-07-09",
+    "account": "5471569552",
+    "window_start": "2023-07-09T07:51:09Z",
+    "window_end": "2023-07-09T07:51:09Z",
+    "n_transactions": 1,
+    "n_flagged": 1,
+    "total_amount_flagged": 46619.14,
+    "case_score": 0.7737,
+    "band": "review",
+    "family_api": "layering",
+    "priority_rank": 1651,
+    "model_version": "binary_v1",
+    "threshold_version": "thresholds_v1",
+    "transacciones": [
+      {
+        "txn_id": "8181808",
+        "ts": "2023-07-09T07:51:09Z",
+        "sender_account": "5471569552",
+        "receiver_account": "140255138",
+        "amount": 46619.1439,
+        "payment_type": "Cheque",
+        "p_laundering": 0.7737,
+        "band": "review",
+        "family_api": "layering",
+        "family_confidence": 0.7124,
+        "reason_codes": [
+          {
+            "code": "NEW_COUNTERPARTY",
+            "feature": "is_new_counterparty",
+            "value": 1,
+            "contribution": 8.122,
+            "text": "Primera transacción hacia esta contraparte"
+          },
+          {
+            "code": "RECEIVER_TIME_SINCE_PREV",
+            "feature": "r_hours_since_prev",
+            "value": 974.4975,
+            "contribution": 3.2299,
+            "text": "El receptor recibió otra transferencia hace 974.50 h"
+          },
+          {
+            "code": "SENDER_TIME_SINCE_PREV",
+            "feature": "s_hours_since_prev",
+            "value": 33.9044,
+            "contribution": 1.5111,
+            "text": "El emisor llevaba 33.9 h sin operar"
+          }
+        ],
+        "features": {
+          "amount": 46619.1439,
+          "payment_type": "Cheque",
+          "currency_mismatch": 0,
+          "is_new_counterparty": 1,
+          "s_cnt_7d": 10,
+          "s_cnt_30d": 34,
+          "s_amt_7d": 87283.2,
+          "s_amt_ratio_mean_30d": 7.7141,
+          "s_amt_z_30d": 4.9009,
+          "s_cash_cnt_30d": 3,
+          "pair_cnt_7d": 0,
+          "r_uniq_snd_7d": 0,
+          "r_uniq_snd_30d": 0,
+          "s_in_cnt_7d": 1,
+          "s_out_in_ratio_7d": 14.6223,
+          "r_out_cnt_7d": 0,
+          "s_hours_since_prev": 33.9044,
+          "r_hours_since_prev": 974.4975
+        }
+      }
+    ]
+  },
+  "envios": {
+    "feedback": {
+      "estado": "aceptado",
+      "status": 201,
+      "feedback_id": "cdc06763-1277-438c-bc32-9bb786f2633a",
+      "intentos": 1
+    },
+    "bandeja": {
+      "estado": "enviado",
+      "status": 200
+    }
+  }
+}

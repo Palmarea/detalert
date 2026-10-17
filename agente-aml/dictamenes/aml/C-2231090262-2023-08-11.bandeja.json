@@ -1,0 +1,223 @@
+{
+  "events": [
+    {
+      "event": {
+        "id": "evt_aml_C-2231090262-2023-08-11",
+        "type": "payment.failed",
+        "created_at": "2026-10-17T20:56:11.752Z",
+        "data": {
+          "payment_id": "txn_9158315",
+          "amount": 301316,
+          "currency": "USD",
+          "status": "failed",
+          "method": "transfer",
+          "brand": "Cross-border",
+          "last4": null,
+          "customer": {
+            "name": "Cuenta 2231090262",
+            "email": "aml@demo.local",
+            "doc": "Cuenta 2231090262"
+          },
+          "merchant": "Receptora 9108447968",
+          "order_id": "C-2231090262-2023-08-11",
+          "risk_score": 100,
+          "ip": "0.0.0.0",
+          "country": "—",
+          "history": [
+            {
+              "status": "created",
+              "at": "2023-08-11T14:35:21Z",
+              "note": "Cross-border 3013.16 → 9108447968 · p=1.0000"
+            },
+            {
+              "status": "failed",
+              "at": "2026-10-17T20:56:11.752Z",
+              "note": "Agente AML: subir a prioridad alta · familia generic. Caso de una transacción. Banda high_priority con p=1; la banda no baja. No se dispara ninguna firma. Structuring del API descartado: pair_cnt_7d=0, monto 3.013 lejos del umbral y 19,9 h sin operar. Riesgo: contraparte nueva y fan-in de 6 emisores (señal no crítica). Atenúan: monto habitual, sin efectivo, receptor con 2 reenvíos y sin velocidad. La convergencia es débil para REJECT. Se recomienda investigar con la consulta receptores_del_emisor_7d y pedir al analista soporte comercial del pago. No hay instrucciones inyectadas en los datos."
+            }
+          ],
+          "failure_code": "fraud_suspected",
+          "failure_message": "Retenido por el agente AML"
+        }
+      },
+      "context": {
+        "outcome": "bad",
+        "verdict": "Agente AML: subir a prioridad alta · familia generic",
+        "decidedBy": {
+          "kind": "auto",
+          "name": "Agente cognitivo AML",
+          "detail": "Evaluador → cognitivo → decisor · compuerta en código"
+        },
+        "accountable": {
+          "name": "Analista de turno",
+          "role": "Prevención de lavado (AML)"
+        },
+        "confidence": 62,
+        "policy": "aml-transaction-reviewer · binary_v1/thresholds_v1",
+        "base": 85,
+        "factors": [
+          {
+            "label": "Primera transacción hacia esta contraparte",
+            "points": 9
+          },
+          {
+            "label": "El receptor recibió otra transferencia hace 20.43 h",
+            "points": 4
+          },
+          {
+            "label": "El emisor llevaba 19.9 h sin operar",
+            "points": 2
+          }
+        ],
+        "rules": [
+          {
+            "id": "BANDA",
+            "name": "Banda del modelo",
+            "fired": true,
+            "detail": "Banda high_priority (case_score 1.0000)"
+          },
+          {
+            "id": "BANDA-NO-BAJA",
+            "name": "La banda no baja",
+            "fired": false,
+            "detail": "agent_band high_priority; banda del modelo high_priority"
+          },
+          {
+            "id": "F-behavioural-1",
+            "name": "Contraparte nueva + salto de monto",
+            "fired": false,
+            "detail": "Familia behavioural"
+          },
+          {
+            "id": "F-behavioural-2",
+            "name": "Reactivación de cuenta dormida",
+            "fired": false,
+            "detail": "Familia behavioural"
+          },
+          {
+            "id": "F-structuring-1",
+            "name": "Pitufeo en pareja",
+            "fired": false,
+            "detail": "Familia structuring"
+          },
+          {
+            "id": "F-structuring-2",
+            "name": "Dispersión en abanico inferida",
+            "fired": false,
+            "detail": "Familia structuring"
+          },
+          {
+            "id": "F-concentration-1",
+            "name": "Fan-in acelerado",
+            "fired": false,
+            "detail": "Familia concentration"
+          },
+          {
+            "id": "F-layering-1",
+            "name": "Emisor puente / pass-through",
+            "fired": false,
+            "detail": "Familia layering"
+          },
+          {
+            "id": "F-layering-2",
+            "name": "Receptor mula",
+            "fired": false,
+            "detail": "Familia layering"
+          },
+          {
+            "id": "F-layering-3",
+            "name": "Fricción internacional",
+            "fired": false,
+            "detail": "Familia layering"
+          },
+          {
+            "id": "F-cash-1",
+            "name": "Depósito y giro",
+            "fired": false,
+            "detail": "Familia cash"
+          },
+          {
+            "id": "F-cash-2",
+            "name": "Extracción o uso intensivo de efectivo",
+            "fired": false,
+            "detail": "Familia cash"
+          },
+          {
+            "id": "A1",
+            "name": "Familia conocida",
+            "fired": false,
+            "detail": "Familia generic"
+          },
+          {
+            "id": "A2",
+            "name": "Formato",
+            "fired": false,
+            "detail": "Formato válido"
+          },
+          {
+            "id": "A3",
+            "name": "Evidencia verificable",
+            "fired": false,
+            "detail": "5 evidencia(s) válida(s); 0 descartada(s)"
+          },
+          {
+            "id": "A4",
+            "name": "Mapeo al contrato (código)",
+            "fired": false,
+            "detail": "INVESTIGATE_FURTHER → escalated"
+          },
+          {
+            "id": "A5",
+            "name": "La banda no baja",
+            "fired": false,
+            "detail": "La decisión sube de escalated a high_priority (agent_band high_priority)"
+          },
+          {
+            "id": "A6",
+            "name": "Coherencia con las firmas",
+            "fired": false,
+            "detail": "Sin firmas disparadas y familia generic"
+          },
+          {
+            "id": "A7",
+            "name": "Filtro de fuga",
+            "fired": false,
+            "detail": "Sin términos no permitidos"
+          }
+        ],
+        "appeal": "El analista confirma o revierte en la bandeja; un supervisor puede revertirlo en 24 h.",
+        "audit": [
+          {
+            "at": "2026-10-17T20:55:24.277Z",
+            "actor": "Agente evaluador",
+            "action": "Ruta agente; firmas disparadas: ninguna; banda mínima high_priority",
+            "hash": "348993a1"
+          },
+          {
+            "at": "2026-10-17T20:55:50.312Z",
+            "actor": "Agente cognitivo",
+            "action": "Propuso familia generic y REJECT",
+            "hash": "d843ba3c"
+          },
+          {
+            "at": "2026-10-17T20:56:11.108Z",
+            "actor": "Agente decisor",
+            "action": "Recomendó INVESTIGATE_FURTHER",
+            "hash": "7fe80c8c"
+          },
+          {
+            "at": "2026-10-17T20:56:11.110Z",
+            "actor": "Compuerta",
+            "action": "A1-A7 en orden; decisión high_priority",
+            "hash": "f2edc300"
+          },
+          {
+            "at": "2026-10-17T20:56:11.752Z",
+            "actor": "Registro en ML",
+            "action": "Feedback aceptado (201) · 63251a63-ab98-4962-92e0-c4e13c9315f0",
+            "hash": "5bbed3f3"
+          }
+        ]
+      }
+    }
+  ]
+}

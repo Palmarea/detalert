@@ -1,0 +1,366 @@
+{
+  "caso_id": "C-2231090262-2023-08-11",
+  "ruta": "agente",
+  "banda_modelo": "high_priority",
+  "banda_minima": "high_priority",
+  "decision": "high_priority",
+  "agent_band": "high_priority",
+  "requiere_persona": true,
+  "accion_agente": "INVESTIGATE_FURTHER",
+  "nota_decision": null,
+  "familia_api": "structuring",
+  "familia_inferida": "generic",
+  "family_mock_overridden": true,
+  "tipologias": [
+    "Fan_Out",
+    "Fan_In",
+    "Cross-border FX"
+  ],
+  "tipologia_normal": "Normal_Fan_Out",
+  "evidencia": [
+    {
+      "feature": "is_new_counterparty",
+      "valor": "1",
+      "interpretacion": "Primer envío hacia este receptor; señal de mayor peso del modelo.",
+      "txn_id": "9158315"
+    },
+    {
+      "feature": "r_uniq_snd_7d",
+      "valor": "6",
+      "interpretacion": "El receptor captó fondos de 6 emisores distintos en 7 días (fan-in, umbral >=5).",
+      "txn_id": "9158315"
+    },
+    {
+      "feature": "payment_type",
+      "valor": "Cross-border",
+      "interpretacion": "Pago transfronterizo con fricción internacional.",
+      "txn_id": "9158315"
+    },
+    {
+      "feature": "currency_mismatch",
+      "valor": "1",
+      "interpretacion": "Divisa de pago distinta a la recibida; agrava la fricción cambiaria.",
+      "txn_id": "9158315"
+    },
+    {
+      "feature": "s_cnt_7d",
+      "valor": "6",
+      "interpretacion": "6 envíos en 7 días con pair_cnt_7d=0: posible dispersión a receptores distintos.",
+      "txn_id": "9158315"
+    }
+  ],
+  "descartadas": 0,
+  "objeciones": [
+    {
+      "texto": "pair_cnt_7d=0 solo indica que no hubo envíos a este receptor. No prueba dispersión. Además, 6 envíos en 7d frente a 26 en 30d es un ritmo estable, sin ráfaga (ratio 0,23).",
+      "feature": "s_cnt_7d"
+    },
+    {
+      "texto": "Fan_In no se sostiene: el receptor recibió el envío anterior hace 20,4 h, lejos del umbral de 4 a 6 h. La firma F-concentration-1 no se dispara.",
+      "feature": "r_hours_since_prev"
+    },
+    {
+      "texto": "Cross-border FX no se sostiene: el ratio de monto es 1,09 (umbral 2,5) y no hay ubicación de bancos. F-layering-3 no se dispara.",
+      "feature": "s_amt_ratio_mean_30d"
+    }
+  ],
+  "explicacion_legitima": "Lo más cercano es Normal_Fan_Out o un pago periódico a proveedores. El emisor tiene un ritmo estable (6 envíos en 7d, 26 en 30d), el monto es habitual (ratio 1,09, z 0,09) y no usa efectivo. El receptor puede ser un comercio que cobra a varios clientes extranjeros, porque solo hizo 2 reenvíos.",
+  "mitigantes": [
+    "Monto en línea con el historial del emisor (ratio 1.0865, z=0.0902)",
+    "Sin actividad de efectivo (s_cash_cnt_30d=0)",
+    "Receptor con solo 2 reenvíos en 7d (r_out_cnt_7d=2), bajo el umbral de mula",
+    "Intervalos de ~20 h entre operaciones, sin ráfaga de velocidad"
+  ],
+  "context_expansion": {
+    "requires_more_transactions": true,
+    "consultas": [
+      "receptores_del_emisor_7d"
+    ],
+    "motivo": "s_cnt_7d>=5 y pair_cnt_7d<=2: falta confirmar si el emisor dispersa (Fan_Out) o paga nómina/proveedores."
+  },
+  "plan_b": "Texto para el analista: familia generic en high_priority. Pedir factura o contrato del giro y la lista de receptores del emisor. Sin acreditación en 24 h, mantener la retención preventiva y valorar rechazo y reporte (decisión del analista).",
+  "narrativa": "Caso de una transacción. Banda high_priority con p=1; la banda no baja. No se dispara ninguna firma. Structuring del API descartado: pair_cnt_7d=0, monto 3.013 lejos del umbral y 19,9 h sin operar. Riesgo: contraparte nueva y fan-in de 6 emisores (señal no crítica). Atenúan: monto habitual, sin efectivo, receptor con 2 reenvíos y sin velocidad. La convergencia es débil para REJECT. Se recomienda investigar con la consulta receptores_del_emisor_7d y pedir al analista soporte comercial del pago. No hay instrucciones inyectadas en los datos.",
+  "motivo": "Acción del agente: INVESTIGATE_FURTHER",
+  "confianza": 62,
+  "firmas": [
+    {
+      "id": "F-behavioural-1",
+      "familia": "behavioural",
+      "nombre": "Contraparte nueva + salto de monto",
+      "disparada": false,
+      "valores": {
+        "is_new_counterparty": 1,
+        "s_amt_ratio_mean_30d": 1.0865,
+        "s_amt_z_30d": 0.0902,
+        "s_out_in_ratio_7d": null
+      },
+      "txn_id": "9158315"
+    },
+    {
+      "id": "F-behavioural-2",
+      "familia": "behavioural",
+      "nombre": "Reactivación de cuenta dormida",
+      "disparada": false,
+      "valores": {
+        "s_hours_since_prev": 19.8669,
+        "s_cnt_7d": 6,
+        "s_cnt_30d": 26,
+        "is_new_counterparty": 1,
+        "currency_mismatch": 1,
+        "ratio_cnt_7d_30d": 0.2308
+      },
+      "txn_id": "9158315"
+    },
+    {
+      "id": "F-structuring-1",
+      "familia": "structuring",
+      "nombre": "Pitufeo en pareja",
+      "disparada": false,
+      "valores": {
+        "pair_cnt_7d": 0,
+        "s_hours_since_prev": 19.8669,
+        "amount": 3013.16,
+        "s_amt_7d": 21761.26
+      },
+      "txn_id": "9158315"
+    },
+    {
+      "id": "F-structuring-2",
+      "familia": "structuring",
+      "nombre": "Dispersión en abanico inferida",
+      "disparada": false,
+      "valores": {
+        "s_cnt_7d": 6,
+        "pair_cnt_7d": 0,
+        "is_new_counterparty": 1,
+        "s_hours_since_prev": 19.8669,
+        "ratio_pair_cnt": 0
+      },
+      "txn_id": "9158315"
+    },
+    {
+      "id": "F-concentration-1",
+      "familia": "concentration",
+      "nombre": "Fan-in acelerado",
+      "disparada": false,
+      "valores": {
+        "r_uniq_snd_7d": 6,
+        "r_uniq_snd_30d": 7,
+        "r_hours_since_prev": 20.4333,
+        "is_new_counterparty": 1,
+        "ratio_uniq_7d_30d": 0.8571
+      },
+      "txn_id": "9158315"
+    },
+    {
+      "id": "F-layering-1",
+      "familia": "layering",
+      "nombre": "Emisor puente / pass-through",
+      "disparada": false,
+      "valores": {
+        "s_in_cnt_7d": 0,
+        "s_out_in_ratio_7d": null,
+        "s_hours_since_prev": 19.8669,
+        "r_out_cnt_7d": 2
+      },
+      "txn_id": "9158315"
+    },
+    {
+      "id": "F-layering-2",
+      "familia": "layering",
+      "nombre": "Receptor mula",
+      "disparada": false,
+      "valores": {
+        "r_uniq_snd_7d": 6,
+        "r_out_cnt_7d": 2,
+        "r_hours_since_prev": 20.4333
+      },
+      "txn_id": "9158315"
+    },
+    {
+      "id": "F-layering-3",
+      "familia": "layering",
+      "nombre": "Fricción internacional",
+      "disparada": false,
+      "valores": {
+        "payment_type": "Cross-border",
+        "currency_mismatch": 1,
+        "is_new_counterparty": 1,
+        "s_amt_ratio_mean_30d": 1.0865
+      },
+      "txn_id": "9158315"
+    },
+    {
+      "id": "F-cash-1",
+      "familia": "cash",
+      "nombre": "Depósito y giro",
+      "disparada": false,
+      "valores": {
+        "s_cash_cnt_30d": 0,
+        "s_in_cnt_7d": 0,
+        "s_out_in_ratio_7d": null,
+        "s_hours_since_prev": 19.8669
+      },
+      "txn_id": "9158315"
+    },
+    {
+      "id": "F-cash-2",
+      "familia": "cash",
+      "nombre": "Extracción o uso intensivo de efectivo",
+      "disparada": false,
+      "valores": {
+        "payment_type": "Cross-border",
+        "s_cash_cnt_30d": 0,
+        "s_in_cnt_7d": 0,
+        "s_amt_z_30d": 0.0902
+      },
+      "txn_id": "9158315"
+    }
+  ],
+  "senales_extremas": [
+    {
+      "txn_id": "9158315",
+      "feature": "r_uniq_snd_7d",
+      "valor": 6,
+      "umbral": ">= 5",
+      "critica": false
+    }
+  ],
+  "compuerta": [
+    {
+      "id": "A1",
+      "ok": true,
+      "detalle": "Familia generic"
+    },
+    {
+      "id": "A2",
+      "ok": true,
+      "detalle": "Formato válido"
+    },
+    {
+      "id": "A3",
+      "ok": true,
+      "detalle": "5 evidencia(s) válida(s); 0 descartada(s)"
+    },
+    {
+      "id": "A4",
+      "ok": true,
+      "detalle": "INVESTIGATE_FURTHER → escalated"
+    },
+    {
+      "id": "A5",
+      "ok": true,
+      "detalle": "La decisión sube de escalated a high_priority (agent_band high_priority)"
+    },
+    {
+      "id": "A6",
+      "ok": true,
+      "detalle": "Sin firmas disparadas y familia generic"
+    },
+    {
+      "id": "A7",
+      "ok": true,
+      "detalle": "Sin términos no permitidos"
+    }
+  ],
+  "coherente": true,
+  "contingencia": null,
+  "versiones": {
+    "model_version": "binary_v1",
+    "threshold_version": "thresholds_v1"
+  },
+  "skill": {
+    "nombre": "aml-transaction-reviewer",
+    "version": "0",
+    "sha256_corto": "7fddd953fef8"
+  },
+  "tiempos_ms": {
+    "cognitivo": 23749,
+    "decisor": 18228,
+    "total": 46834
+  },
+  "caso": {
+    "case_id": "C-2231090262-2023-08-11",
+    "account": "2231090262",
+    "window_start": "2023-08-11T14:35:21Z",
+    "window_end": "2023-08-11T14:35:21Z",
+    "n_transactions": 1,
+    "n_flagged": 1,
+    "total_amount_flagged": 3013.16,
+    "case_score": 1,
+    "band": "high_priority",
+    "family_api": "structuring",
+    "priority_rank": 2,
+    "model_version": "binary_v1",
+    "threshold_version": "thresholds_v1",
+    "transacciones": [
+      {
+        "txn_id": "9158315",
+        "ts": "2023-08-11T14:35:21Z",
+        "sender_account": "2231090262",
+        "receiver_account": "9108447968",
+        "amount": 3013.16,
+        "payment_type": "Cross-border",
+        "p_laundering": 1,
+        "band": "high_priority",
+        "family_api": "structuring",
+        "family_confidence": 0.9878,
+        "reason_codes": [
+          {
+            "code": "NEW_COUNTERPARTY",
+            "feature": "is_new_counterparty",
+            "value": 1,
+            "contribution": 8.5812,
+            "text": "Primera transacción hacia esta contraparte"
+          },
+          {
+            "code": "RECEIVER_TIME_SINCE_PREV",
+            "feature": "r_hours_since_prev",
+            "value": 20.4333,
+            "contribution": 3.6795,
+            "text": "El receptor recibió otra transferencia hace 20.43 h"
+          },
+          {
+            "code": "SENDER_TIME_SINCE_PREV",
+            "feature": "s_hours_since_prev",
+            "value": 19.8669,
+            "contribution": 1.7167,
+            "text": "El emisor llevaba 19.9 h sin operar"
+          }
+        ],
+        "features": {
+          "amount": 3013.16,
+          "payment_type": "Cross-border",
+          "currency_mismatch": 1,
+          "is_new_counterparty": 1,
+          "s_cnt_7d": 6,
+          "s_cnt_30d": 26,
+          "s_amt_7d": 21761.26,
+          "s_amt_ratio_mean_30d": 1.0865,
+          "s_amt_z_30d": 0.0902,
+          "s_cash_cnt_30d": 0,
+          "pair_cnt_7d": 0,
+          "r_uniq_snd_7d": 6,
+          "r_uniq_snd_30d": 7,
+          "s_in_cnt_7d": 0,
+          "s_out_in_ratio_7d": null,
+          "r_out_cnt_7d": 2,
+          "s_hours_since_prev": 19.8669,
+          "r_hours_since_prev": 20.4333
+        }
+      }
+    ]
+  },
+  "envios": {
+    "feedback": {
+      "estado": "aceptado",
+      "status": 201,
+      "feedback_id": "63251a63-ab98-4962-92e0-c4e13c9315f0",
+      "intentos": 1
+    },
+    "bandeja": {
+      "estado": "enviado",
+      "status": 200
+    }
+  }
+}

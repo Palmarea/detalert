@@ -1,0 +1,8 @@
+{
+  "sender_account": "3333333333",
+  "receiver_account": "4444444444",
+  "amount": 48000,
+  "payment_type": "Cash Withdrawal",
+  "payment_currency": "UK pounds",
+  "received_currency": "UK pounds"
+}

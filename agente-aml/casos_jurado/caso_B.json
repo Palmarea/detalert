@@ -1,0 +1,9 @@
+{
+  "ts": "2023-08-10T00:00:00Z",
+  "sender_account": "5980150926",
+  "receiver_account": "130851374",
+  "amount": 10404.18,
+  "payment_type": "Cheque",
+  "payment_currency": "UK pounds",
+  "received_currency": "UK pounds"
+}

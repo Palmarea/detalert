@@ -1,0 +1,8 @@
+{
+  "sender_account": "1111111111",
+  "receiver_account": "2222222222",
+  "amount": 9500,
+  "payment_type": "Cash Deposit",
+  "payment_currency": "UK pounds",
+  "received_currency": "UK pounds"
+}
