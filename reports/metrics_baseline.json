@@ -1,0 +1,46 @@
+{
+  "test": {
+    "n": 1854813,
+    "positivos": 1875,
+    "gini": 46.73,
+    "ks": 42.65,
+    "pr_auc": 0.0035,
+    "recall@1%": 0.08,
+    "recall@5%": 0.3019,
+    "precision@1000": 0.003,
+    "alert_rate_1+_reglas": 0.2481,
+    "recall_1+_reglas": 0.6741,
+    "alert_rate_2+_reglas": 0.0294,
+    "recall_2+_reglas": 0.2443,
+    "recall_por_regla": {
+      "R1_efectivo": 0.2923,
+      "R2_jurisdiccion_riesgo": 0.1403,
+      "R3_monto_alto": 0.04,
+      "R4_estructuracion": 0.1365,
+      "R5_monto_inusual": 0.1061,
+      "R6_contraparte_nueva_monto": 0.2464
+    }
+  },
+  "oot": {
+    "n": 2456064,
+    "positivos": 2837,
+    "gini": 44.7,
+    "ks": 40.97,
+    "pr_auc": 0.004,
+    "recall@1%": 0.0938,
+    "recall@5%": 0.2806,
+    "precision@1000": 0.005,
+    "alert_rate_1+_reglas": 0.2404,
+    "recall_1+_reglas": 0.6496,
+    "alert_rate_2+_reglas": 0.026,
+    "recall_2+_reglas": 0.2249,
+    "recall_por_regla": {
+      "R1_efectivo": 0.2788,
+      "R2_jurisdiccion_riesgo": 0.1576,
+      "R3_monto_alto": 0.0293,
+      "R4_estructuracion": 0.1244,
+      "R5_monto_inusual": 0.1008,
+      "R6_contraparte_nueva_monto": 0.2214
+    }
+  }
+}
