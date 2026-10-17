@@ -6,3 +6,8 @@ __pycache__/
 *.pyc
 .DS_Store
 *.egg-info/
+.venv/
+.venv/
+.DS_Store
+*.csv
+output_detect/

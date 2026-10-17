@@ -1,0 +1,14 @@
+{
+  "transaction_id": "tx_000123",
+  "transaction": {
+    "Time": "10:35:19", "Date": "2022-10-07",
+    "Sender_account": 8724731955, "Receiver_account": 2769355426,
+    "Amount": 9850.00, "Payment_currency": "UK pounds", "Received_currency": "Dirham",
+    "Sender_bank_location": "UK", "Receiver_bank_location": "UAE",
+    "Payment_type": "Cross-border"
+  },
+  "model": {
+    "p_laundering": 0.87, "band": "high_priority",
+    "family": "layering", "family_source": "mock", "thresholds_version": "---"
+  }
+}
