@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS aml.meta (
 -- Decisiones del agente y del analista: alimenta reentrenamiento y evaluación del agente.
 CREATE TABLE IF NOT EXISTS aml.feedback (
     feedback_id UUID PRIMARY KEY,
-    case_id     TEXT NOT NULL REFERENCES aml.cases (case_id),
+    case_id     TEXT NOT NULL,  -- sin FK: también casos de /score/live, y sobrevive a re-exports
     actor       TEXT NOT NULL CHECK (actor IN ('agent', 'analyst')),
     decision    TEXT NOT NULL,
     model_band  TEXT NOT NULL,
@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS aml.feedback (
     received_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS feedback_case ON aml.feedback (case_id);
+-- Columnas del ciclo de feedback y aml.threshold_proposals: sql/migrations/ (se aplican después de este archivo).
 
 -- Defensa en profundidad (Supabase): el esquema aml no se expone por la API REST,
 -- pero igual se activa RLS sin políticas; solo el rol dueño (el que usa FastAPI) accede.

@@ -34,7 +34,10 @@ La API entrega, para cada transacción y cada caso, el **score calibrado**, la *
 | GET | `/thresholds` | Puntos de operación y su costo (auto-cierre y leakage) |
 | GET | `/model/metrics` | Gini, KS, comparación con el baseline, recall por tipología y funnel |
 | GET | `/audit/{txn_id}` | Snapshot de features y scores (trazabilidad) |
-| POST | `/feedback` | Decisión del agente o del analista |
+| POST | `/feedback` | Decisión del agente o del analista (también de casos de `/score/live`) |
+| GET | `/feedback?actor=&origin=&since=&limit=500&offset=0` | Decisiones registradas: dataset de etiquetas |
+| POST | `/thresholds/proposals` | Propuesta de umbral del agente (formato `PROPS` de `/umbrales.html`) |
+| GET | `/thresholds/proposals?status=` | Propuestas con su estado, límites de la simulación OOT y registro |
 
 ### Ejemplo: flujo del agente
 
@@ -49,6 +52,49 @@ curl "$API/cases/C-1234567890-2023-06-05"
 curl -X POST "$API/feedback" -H 'Content-Type: application/json' \
   -d '{"case_id":"C-1234567890-2023-06-05","actor":"agent","decision":"escalated","agent_band":"review","notes":"Narrativa..."}'
 ```
+
+## Ciclo de feedback
+
+**Feedback de casos en vivo.** Un caso de `/score/live` no existe en `/cases`. Se manda con
+`origin: "score_live"` y `case_score` (el `p_laundering` que devolvió `/score/live`); con ese score se
+valida que el agente no baje la banda. `model_version`, `threshold_version` y `agent_payload` (familia
+inferida, confianza, firmas, consultas pedidas…) son opcionales y quedan guardados para reentrenar.
+
+```bash
+curl -X POST "$API/feedback" -H "X-API-Key: $AML_API_KEY" -H 'Content-Type: application/json' -d '{
+  "case_id": "jurado_20261017163615", "origin": "score_live", "case_score": 0.0121,
+  "actor": "agent", "decision": "escalated", "agent_band": "review",
+  "model_version": "binary_v1", "threshold_version": "thresholds_v1",
+  "agent_payload": {"familia_inferida": "generic", "confianza": 66, "consultas_pedidas": []}}'
+```
+
+El analista registra su resolución con `actor: "analyst"` y `approved`, `rejected` o `sar_filed`.
+
+**Propuestas de umbral.** El agente propone; la API **nunca** cambia los umbrales por sí sola.
+
+| Regla (422 si no se cumple) | |
+|---|---|
+| `ask[1]` es el valor vigente | `["auto" \| "high", vigente, pedido]` sobre el modo `normal` |
+| Cambio ≤ 25 % | |
+| ≥ 5 casos distintos de evidencia, todos existentes | En `/cases` o con feedback `score_live` |
+
+| Estado | Significa |
+|---|---|
+| `pending` | Endurece; espera la simulación OOT |
+| `blocked` | Relaja (sube un umbral); espera que el analista apruebe (`approved`) todos los casos de evidencia |
+| `passed` | Pasó los límites en OOT; espera que ML la aplique |
+| `rejected` | No pasó algún límite, o se propuso sobre una versión de umbrales vieja (motivo en `reason`) |
+| `applied` | Publicada como `thresholds_vX.N-agente` |
+
+La simulación corre del lado de ML, porque la API no ve las etiquetas reales:
+
+```bash
+python -m aml.review_proposals                 # desbloquea, simula en OOT y escribe guards/status
+python -m aml.review_proposals --apply P-002   # publica una 'passed' (cambia los umbrales en vivo)
+```
+
+Límites de la compuerta (en `review_proposals.py`): lavado que se cierra solo ≤ 0,30 % de los casos con
+lavado, precisión de prioridad alta ≥ 95 %, cola ≤ 130 casos por día.
 
 ## Scoring en vivo (`POST /score/live`)
 
@@ -117,6 +163,10 @@ El proyecto ya existe: `aml-scoring-api`, en el team `josephchomboms-projects`, 
 # Esquema + datos mock (para tener la API en modo postgres desde ya)
 DATABASE_URL='postgresql://...' .venv/bin/python -m aml.api.seed_mock
 ```
+
+Sobre una base que ya existe, el ciclo de feedback solo necesita la migración (idempotente, solo agrega):
+`psql "$DATABASE_URL" -f sql/migrations/002_feedback_loop.sql`. El export y el seed la aplican solos.
+`python -m aml.export` ya **no** borra `aml.feedback`.
 
 El export con la data real (`python -m aml.export`) llega con la fase 3: casos, umbrales y puntos de operación.
 

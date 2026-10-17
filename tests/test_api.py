@@ -142,3 +142,62 @@ def test_live_score_unknown_accounts(client):
     new = dict(LIVE_TXN, sender_account="cuenta-nueva-1", receiver_account="cuenta-nueva-2")
     d = client.post("/score/live", json=new).json()
     assert d["features"]["is_new_counterparty"] == 1 and d["features"]["s_hours_since_prev"] is None
+
+
+def test_feedback_live_and_list(client):
+    base = client.get("/feedback").json()["total"]
+    # Caso de /score/live: no existe en /cases; la banda se valida con case_score.
+    no_score = client.post("/feedback", json={"case_id": "jurado_1", "actor": "agent", "decision": "escalated",
+                                              "origin": "score_live"})
+    assert no_score.status_code == 422
+    lower = client.post("/feedback", json={"case_id": "jurado_1", "actor": "agent", "decision": "auto_closed",
+                                           "origin": "score_live", "case_score": 0.99,
+                                           "agent_band": "auto_close_eligible"})
+    assert lower.status_code == 422
+    ok = client.post("/feedback", json={"case_id": "jurado_1", "actor": "agent", "decision": "escalated",
+                                        "origin": "score_live", "case_score": 0.5, "agent_band": "review",
+                                        "model_version": "binary_v1",
+                                        "agent_payload": {"familia_inferida": "structuring", "confianza": 66}})
+    assert ok.status_code == 201
+    r = client.get("/feedback", params={"origin": "score_live"}).json()
+    rec = r["items"][-1]
+    assert rec["case_id"] == "jurado_1" and rec["agent_payload"]["confianza"] == 66 and rec["case_score"] == 0.5
+    assert client.get("/feedback").json()["total"] == base + 1
+    assert client.get("/feedback", params={"actor": "analyst", "origin": "score_live"}).json()["total"] == 0
+
+
+def _evidence(client, n, band="review"):
+    cases = client.get("/cases", params={"band": band, "limit": n}).json()["cases"]
+    return [[c["case_id"], c["case_score"], c["band"], "review", "prueba"] for c in cases]
+
+
+def test_threshold_proposals(client):
+    auto = next(op for op in client.get("/thresholds").json()["operating_points"]
+                if op["mode"] == "normal")["auto_close_threshold"]
+    ev = _evidence(client, 5)
+    tighten = client.post("/thresholds/proposals", json={
+        "title": "Bajar cierre", "ask": ["auto", auto, round(auto * 0.9, 6)], "evidence": ev})
+    assert tighten.status_code == 201, tighten.text
+    p = tighten.json()
+    assert p["status"] == "pending" and p["from"]["auto"] == auto and p["id"].startswith("P-")
+    relax = client.post("/thresholds/proposals", json={
+        "title": "Subir cierre", "ask": ["auto", auto, round(auto * 1.1, 6)], "evidence": ev}).json()
+    assert relax["status"] == "blocked"
+    listed = client.get("/thresholds/proposals").json()
+    assert {x["id"] for x in listed["proposals"]} >= {p["id"], relax["id"]}
+    assert all(x["status"] == "blocked" for x in client.get("/thresholds/proposals",
+                                                              params={"status": "blocked"}).json()["proposals"])
+
+
+def test_threshold_proposal_rules(client):
+    auto = next(op for op in client.get("/thresholds").json()["operating_points"]
+                if op["mode"] == "normal")["auto_close_threshold"]
+    ev = _evidence(client, 5)
+    bad = [
+        {"ask": ["auto", auto * 2, auto], "evidence": ev},                       # no es el valor vigente
+        {"ask": ["auto", auto, auto * 0.5], "evidence": ev},                     # cambio > 25 %
+        {"ask": ["auto", auto, auto * 0.9], "evidence": ev[:4]},                 # < 5 casos
+        {"ask": ["auto", auto, auto * 0.9], "evidence": ev[:4] + [["C-no-existe", 0.1, "review", "review", ""]]},
+    ]
+    for body in bad:
+        assert client.post("/thresholds/proposals", json={"title": "x", **body}).status_code == 422

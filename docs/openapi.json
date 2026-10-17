@@ -465,17 +465,22 @@
           "feedback"
         ],
         "summary": "Feedback",
-        "description": "Decisión del agente o del analista. Rechaza (422) si el agente intenta bajar la banda del modelo.",
+        "description": "Decisión del agente o del analista. Rechaza (422) si el agente intenta bajar la banda del modelo.\n\nCasos de `/score/live`: `origin=\"score_live\"` y `case_score` (el `p_laundering` que devolvió).",
         "operationId": "feedback_feedback_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/FeedbackIn"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -498,12 +503,216 @@
               }
             }
           }
-        },
+        }
+      },
+      "get": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "List Feedback",
+        "description": "Decisiones registradas, en orden de llegada: el dataset de etiquetas para reentrenar y evaluar al agente.",
+        "operationId": "list_feedback_feedback_get",
         "security": [
           {
             "APIKeyHeader": []
           }
-        ]
+        ],
+        "parameters": [
+          {
+            "name": "actor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Actor"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor"
+            }
+          },
+          {
+            "name": "origin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Origin"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 5000,
+              "minimum": 1,
+              "default": 500,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/thresholds/proposals": {
+      "post": {
+        "tags": [
+          "modelo"
+        ],
+        "summary": "Create Proposal",
+        "description": "Propuesta de umbral del agente (formato `PROPS`). Endurecer queda `pending` hasta la simulación OOT;\nrelajar queda `blocked` hasta que el analista apruebe. Nunca cambia los umbrales vigentes por sí sola.",
+        "operationId": "create_proposal_thresholds_proposals_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Proposal"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "modelo"
+        ],
+        "summary": "List Proposals",
+        "description": "Propuestas con su `status`, los `guards` de la simulación OOT y su `log`.",
+        "operationId": "list_proposals_thresholds_proposals_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ProposalStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -959,6 +1168,59 @@
               }
             ],
             "title": "Notes"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin",
+            "default": "cases"
+          },
+          "case_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Score",
+            "description": "Obligatorio si origin=score_live: el p_laundering que devolvió /score/live (con él se valida la banda)"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "threshold_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold Version"
+          },
+          "agent_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Payload",
+            "description": "Detalle libre del agente para reentrenar: familia inferida, confianza, firmas disparadas, consultas pedidas, etc."
           }
         },
         "type": "object",
@@ -968,6 +1230,139 @@
           "decision"
         ],
         "title": "FeedbackIn"
+      },
+      "FeedbackList": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackRecord"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "items"
+        ],
+        "title": "FeedbackList"
+      },
+      "FeedbackRecord": {
+        "properties": {
+          "feedback_id": {
+            "type": "string",
+            "title": "Feedback Id"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/Actor"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/Decision"
+          },
+          "model_band": {
+            "$ref": "#/components/schemas/Band"
+          },
+          "agent_band": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Band"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "case_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Score"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "agent_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Payload"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "threshold_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold Version"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Received At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "feedback_id",
+          "case_id",
+          "origin",
+          "actor",
+          "decision",
+          "model_band",
+          "agent_band",
+          "case_score",
+          "notes",
+          "agent_payload",
+          "model_version",
+          "threshold_version",
+          "received_at"
+        ],
+        "title": "FeedbackRecord"
       },
       "FunnelStage": {
         "properties": {
@@ -1329,6 +1724,43 @@
         ],
         "title": "ModelMetrics"
       },
+      "OpSnapshot": {
+        "properties": {
+          "a": {
+            "type": "number",
+            "title": "A",
+            "description": "% de casos que se cierran solos"
+          },
+          "h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "H",
+            "description": "Precisión de prioridad alta (%)"
+          },
+          "auto": {
+            "type": "number",
+            "title": "Auto"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "a",
+          "h",
+          "auto",
+          "high"
+        ],
+        "title": "OpSnapshot"
+      },
       "OperatingPoint": {
         "properties": {
           "mode": {
@@ -1394,6 +1826,298 @@
           "preventive_hold"
         ],
         "title": "OperatingPoint"
+      },
+      "Origin": {
+        "type": "string",
+        "enum": [
+          "cases",
+          "score_live"
+        ],
+        "title": "Origin"
+      },
+      "Proposal": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "sub": {
+            "type": "string",
+            "title": "Sub"
+          },
+          "ask": {
+            "prefixItems": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "high"
+                ]
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Ask"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "from": {
+            "$ref": "#/components/schemas/OpSnapshot"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "guards": {
+            "anyOf": [
+              {
+                "items": {
+                  "prefixItems": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ],
+                  "type": "array",
+                  "maxItems": 4,
+                  "minItems": 4
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guards",
+            "description": "[límite, regla, antes → después, cumple]; los llena la simulación OOT"
+          },
+          "evidence": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/components/schemas/Band"
+                },
+                {
+                  "$ref": "#/components/schemas/Band"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array",
+              "maxItems": 5,
+              "minItems": 5
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "log": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array",
+              "maxItems": 3,
+              "minItems": 3
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "[quién, qué, hora]"
+          },
+          "base_threshold_version": {
+            "type": "string",
+            "title": "Base Threshold Version"
+          },
+          "applied_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "status",
+          "title",
+          "sub",
+          "ask",
+          "reason",
+          "from",
+          "evidence",
+          "log",
+          "base_threshold_version"
+        ],
+        "title": "Proposal"
+      },
+      "ProposalIn": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "sub": {
+            "type": "string",
+            "title": "Sub",
+            "default": ""
+          },
+          "ask": {
+            "prefixItems": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "high"
+                ]
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Ask",
+            "description": "[umbral, valor actual, valor pedido]",
+            "examples": [
+              [
+                "auto",
+                0.002355,
+                0.0019
+              ]
+            ]
+          },
+          "evidence": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/components/schemas/Band"
+                },
+                {
+                  "$ref": "#/components/schemas/Band"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array",
+              "maxItems": 5,
+              "minItems": 5
+            },
+            "type": "array",
+            "title": "Evidence",
+            "description": "[case_id, case_score, banda del modelo, banda del agente, por qué]"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "description": "Razonamiento del agente; queda en el registro",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "ask",
+          "evidence"
+        ],
+        "title": "ProposalIn"
+      },
+      "ProposalList": {
+        "properties": {
+          "threshold_version": {
+            "type": "string",
+            "title": "Threshold Version"
+          },
+          "proposals": {
+            "items": {
+              "$ref": "#/components/schemas/Proposal"
+            },
+            "type": "array",
+            "title": "Proposals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "threshold_version",
+          "proposals"
+        ],
+        "title": "ProposalList"
+      },
+      "ProposalStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "blocked",
+          "passed",
+          "rejected",
+          "applied"
+        ],
+        "title": "ProposalStatus"
       },
       "ReasonCode": {
         "properties": {

@@ -207,17 +207,105 @@ class Decision(str, Enum):
     sar_filed = "sar_filed"    # reporte de operación sospechosa emitido
 
 
+class Origin(str, Enum):
+    cases = "cases"            # caso de /cases (existe en aml.cases)
+    score_live = "score_live"  # transacción puntuada en vivo: no tiene case_id nuestro
+
+
 class FeedbackIn(BaseModel):
     case_id: str
     actor: Actor
     decision: Decision
     agent_band: Band | None = Field(None, description="Banda final del agente (solo puede ser >= la del modelo)")
     notes: str | None = None
+    origin: Origin = Origin.cases
+    case_score: float | None = Field(None, ge=0, le=1, description="Obligatorio si origin=score_live: el "
+                                     "p_laundering que devolvió /score/live (con él se valida la banda)")
+    model_version: str | None = None
+    threshold_version: str | None = None
+    agent_payload: dict | None = Field(None, description="Detalle libre del agente para reentrenar: familia "
+                                       "inferida, confianza, firmas disparadas, consultas pedidas, etc.")
 
 
 class FeedbackAck(BaseModel):
     feedback_id: str
     received_at: datetime
+
+
+class FeedbackRecord(BaseModel):
+    feedback_id: str
+    case_id: str
+    origin: Origin
+    actor: Actor
+    decision: Decision
+    model_band: Band
+    agent_band: Band | None
+    case_score: float | None
+    notes: str | None
+    agent_payload: dict | None
+    model_version: str | None
+    threshold_version: str | None
+    received_at: datetime
+
+
+class FeedbackList(BaseModel):
+    total: int
+    items: list[FeedbackRecord]
+
+
+# --- Propuestas de umbral (misma forma que PROPS de la página /umbrales.html de la bandeja) ---
+
+class ProposalStatus(str, Enum):
+    pending = "pending"    # espera la simulación OOT (python -m aml.review_proposals)
+    blocked = "blocked"    # relaja un umbral: espera aprobaciones del analista
+    passed = "passed"      # pasó la simulación; espera que ML la aplique
+    rejected = "rejected"  # no pasó algún límite (motivo en reason)
+    applied = "applied"    # publicada como nueva threshold_version
+
+
+Which = Literal["auto", "high"]  # auto = umbral de cierre automático; high = umbral de prioridad alta
+
+
+class OpSnapshot(BaseModel):
+    a: float = Field(description="% de casos que se cierran solos")
+    h: float | None = Field(description="Precisión de prioridad alta (%)")
+    auto: float
+    high: float
+
+
+class ProposalIn(BaseModel):
+    title: str
+    sub: str = ""
+    ask: tuple[Which, float, float] = Field(description="[umbral, valor actual, valor pedido]",
+                                            examples=[["auto", 0.002355, 0.0019]])
+    evidence: list[tuple[str, float, Band, Band, str]] = Field(
+        description="[case_id, case_score, banda del modelo, banda del agente, por qué]")
+    reason: str = Field("", description="Razonamiento del agente; queda en el registro")
+
+
+class Proposal(BaseModel):
+    model_config = {"populate_by_name": True}
+
+    id: str
+    at: datetime
+    status: ProposalStatus
+    title: str
+    sub: str
+    ask: tuple[Which, float, float]
+    reason: str
+    from_: OpSnapshot = Field(alias="from")
+    to: OpSnapshot | None = None
+    guards: list[tuple[str, str, str, bool]] | None = Field(
+        None, description="[límite, regla, antes → después, cumple]; los llena la simulación OOT")
+    evidence: list[tuple[str, float, Band, Band, str]]
+    log: list[tuple[str, str, str]] = Field(description="[quién, qué, hora]")
+    base_threshold_version: str
+    applied_version: str | None = None
+
+
+class ProposalList(BaseModel):
+    threshold_version: str
+    proposals: list[Proposal]
 
 
 class Health(Versions):

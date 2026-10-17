@@ -8,11 +8,12 @@ import random
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from aml.api.backend import band_for, check_agent_band, operating_point
+from aml.api import proposals
+from aml.api.backend import band_for, check_agent_band, live_model_band, operating_point
 from aml.api.schemas import (
     AccountScore, AuditRecord, Band, CaseDetail, CaseList, CaseSummary, Family, FeedbackAck,
-    FeedbackIn, FunnelStage, Mode, ModelMetrics, OperatingPoint, ReasonCode, ScoreResponse,
-    Thresholds, TxnScore,
+    FeedbackIn, FeedbackList, FeedbackRecord, FunnelStage, Mode, ModelMetrics, OperatingPoint, Origin,
+    Proposal, ProposalList, ReasonCode, ScoreResponse, Thresholds, TxnScore,
 )
 
 MODEL_VERSION = "binary_v1-mock"
@@ -76,7 +77,8 @@ class MockBackend:
         self._txns: dict[int, TxnScore] = {}
         self._audit: dict[int, AuditRecord] = {}
         self._cases: dict[str, dict] = {}
-        self._feedback: list[dict] = []
+        self._feedback: list[FeedbackRecord] = []
+        self._proposals: list[Proposal] = []
         t0 = datetime(2023, 6, 1, tzinfo=timezone.utc)
         txn_id = 9_000_000
         normal = operating_point(self._th, Mode.normal)
@@ -179,12 +181,37 @@ class MockBackend:
         return self._audit.get(txn_id)
 
     def feedback(self, fb: FeedbackIn) -> FeedbackAck:
-        if fb.case_id not in self._cases:
+        if fb.origin == Origin.score_live:
+            model_band = live_model_band(fb, self._th)
+        elif fb.case_id in self._cases:
+            model_band = band_for(self._cases[fb.case_id]["case_score"], operating_point(self._th, Mode.normal))
+        else:
             raise KeyError(fb.case_id)
-        check_agent_band(band_for(self._cases[fb.case_id]["case_score"], operating_point(self._th, Mode.normal)), fb)
+        check_agent_band(model_band, fb)
         ack = FeedbackAck(feedback_id=str(uuid.uuid4()), received_at=datetime.now(timezone.utc))
-        self._feedback.append(fb.model_dump() | ack.model_dump())
+        self._feedback.append(FeedbackRecord(**fb.model_dump(), **ack.model_dump(), model_band=model_band))
         return ack
+
+    def list_feedback(self, actor, origin, since, limit, offset) -> FeedbackList:
+        items = [f for f in self._feedback if (actor is None or f.actor == actor)
+                 and (origin is None or f.origin == origin) and (since is None or f.received_at >= since)]
+        return FeedbackList(total=len(items), items=items[offset:offset + limit])
+
+    def _known_case_ids(self) -> set[str]:
+        return set(self._cases) | {f.case_id for f in self._feedback if f.origin == Origin.score_live}
+
+    def create_proposal(self, p) -> Proposal:
+        proposals.validate(p, self._th, self._known_case_ids())
+        status, reason, log = proposals.initial(p)
+        prop = Proposal(id=f"P-{len(self._proposals) + 1:03d}", at=datetime.now(timezone.utc), status=status,
+                        title=p.title, sub=p.sub, ask=p.ask, reason=reason, from_=proposals.snapshot(self._th),
+                        evidence=p.evidence, log=log, base_threshold_version=self._th.threshold_version)
+        self._proposals.append(prop)
+        return prop
+
+    def list_proposals(self, status) -> ProposalList:
+        return ProposalList(threshold_version=self._th.threshold_version,
+                            proposals=[p for p in self._proposals if status is None or p.status == status])
 
     def score_live(self, txn, mode):
         raise NotImplementedError("El scoring en vivo necesita el historial real: usa AML_BACKEND=postgres")

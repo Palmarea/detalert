@@ -18,10 +18,12 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 
-from aml.api.backend import AgentCannotLowerBand, Backend
+from aml.api.backend import AgentCannotLowerBand, Backend, MissingCaseScore
+from aml.api.proposals import InvalidProposal
 from aml.api.schemas import (
-    AccountScore, AuditRecord, Band, CaseDetail, CaseList, FeedbackAck, FeedbackIn, Health, LiveScore,
-    LiveTransaction, Mode, ModelMetrics, ScoreRequest, ScoreResponse, Thresholds,
+    AccountScore, Actor, AuditRecord, Band, CaseDetail, CaseList, FeedbackAck, FeedbackIn, FeedbackList, Health,
+    LiveScore, LiveTransaction, Mode, ModelMetrics, Origin, Proposal, ProposalIn, ProposalList, ProposalStatus,
+    ScoreRequest, ScoreResponse, Thresholds,
 )
 
 
@@ -133,10 +135,45 @@ def audit(txn_id: int, b: Backend = Depends(get_backend)):
 
 @app.post("/feedback", response_model=FeedbackAck, status_code=201, dependencies=protected, tags=["feedback"])
 def feedback(fb: FeedbackIn, b: Backend = Depends(get_backend)):
-    """Decisión del agente o del analista. Rechaza (422) si el agente intenta bajar la banda del modelo."""
+    """Decisión del agente o del analista. Rechaza (422) si el agente intenta bajar la banda del modelo.
+
+    Casos de `/score/live`: `origin="score_live"` y `case_score` (el `p_laundering` que devolvió)."""
     try:
         return b.feedback(fb)
     except KeyError:
         raise HTTPException(404, f"Caso {fb.case_id} no existe")
-    except AgentCannotLowerBand as e:
+    except (AgentCannotLowerBand, MissingCaseScore) as e:
         raise HTTPException(422, str(e))
+
+
+@app.get("/feedback", response_model=FeedbackList, dependencies=protected, tags=["feedback"])
+def list_feedback(
+    actor: Actor | None = None,
+    origin: Origin | None = None,
+    since: datetime | None = None,
+    limit: int = Query(500, ge=1, le=5000),
+    offset: int = Query(0, ge=0),
+    b: Backend = Depends(get_backend),
+):
+    """Decisiones registradas, en orden de llegada: el dataset de etiquetas para reentrenar y evaluar al agente."""
+    if since and not since.tzinfo:
+        since = since.replace(tzinfo=timezone.utc)
+    return b.list_feedback(actor, origin, since, limit, offset)
+
+
+@app.post("/thresholds/proposals", response_model=Proposal, status_code=201, dependencies=protected,
+          tags=["modelo"], response_model_by_alias=True)
+def create_proposal(p: ProposalIn, b: Backend = Depends(get_backend)):
+    """Propuesta de umbral del agente (formato `PROPS`). Endurecer queda `pending` hasta la simulación OOT;
+    relajar queda `blocked` hasta que el analista apruebe. Nunca cambia los umbrales vigentes por sí sola."""
+    try:
+        return b.create_proposal(p)
+    except InvalidProposal as e:
+        raise HTTPException(422, str(e))
+
+
+@app.get("/thresholds/proposals", response_model=ProposalList, dependencies=protected, tags=["modelo"],
+         response_model_by_alias=True)
+def list_proposals(status: ProposalStatus | None = None, b: Backend = Depends(get_backend)):
+    """Propuestas con su `status`, los `guards` de la simulación OOT y su `log`."""
+    return b.list_proposals(status)

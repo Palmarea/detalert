@@ -27,6 +27,7 @@ from aml.explain import reason_codes, snapshot
 
 SAMPLE = "oot"
 SCHEMA = ROOT / "sql" / "schema.sql"
+MIGRATIONS = ROOT / "sql" / "migrations"
 
 
 def database_url() -> str:
@@ -55,7 +56,9 @@ def top_case_reasons(rcs: list[list[dict]], k: int = 4) -> list[dict]:
 def main() -> None:
     t0 = time.time()
     meta = json.loads((MODELS_DIR / "binary_v1_meta.json").read_text())
-    thresholds = json.loads((MODELS_DIR / "thresholds_v1.json").read_text())
+    # thresholds_current.json lo escribe review_proposals --apply; si no existe, la versión base.
+    current = MODELS_DIR / "thresholds_current.json"
+    thresholds = json.loads((current if current.exists() else MODELS_DIR / "thresholds_v1.json").read_text())
     metrics = json.loads((MODELS_DIR / "api_metrics_v1.json").read_text())
     model_version, threshold_version = f"binary_{meta['version']}", thresholds["threshold_version"]
     feats = meta["features"]
@@ -79,7 +82,10 @@ def main() -> None:
 
     with psycopg.connect(database_url(), prepare_threshold=None) as pg:
         pg.execute(SCHEMA.read_text())
-        pg.execute("TRUNCATE aml.feedback, aml.txn_scores, aml.cases")
+        for m in sorted(MIGRATIONS.glob("*.sql")):
+            pg.execute(m.read_text())
+        # aml.feedback NO se borra: son las etiquetas del agente y del analista para reentrenar.
+        pg.execute("TRUNCATE aml.txn_scores, aml.cases")
         # Solo las claves propias: aml.meta también guarda el modelo en vivo (export_live).
         pg.execute("DELETE FROM aml.meta WHERE key IN ('thresholds', 'metrics')")
         pg.execute("INSERT INTO aml.meta VALUES ('thresholds', %s), ('metrics', %s)",

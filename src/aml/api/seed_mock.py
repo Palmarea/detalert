@@ -22,7 +22,9 @@ def main() -> None:
     m = MockBackend()
     with psycopg.connect(os.environ["DATABASE_URL"], autocommit=False) as c:
         c.execute(SCHEMA.read_text())
-        c.execute("TRUNCATE aml.feedback, aml.txn_scores, aml.cases, aml.meta")
+        for mig in sorted((SCHEMA.parent / "migrations").glob("*.sql")):
+            c.execute(mig.read_text())
+        c.execute("TRUNCATE aml.feedback, aml.threshold_proposals, aml.txn_scores, aml.cases, aml.meta RESTART IDENTITY")
         c.execute("INSERT INTO aml.meta VALUES ('thresholds', %s), ('metrics', %s)",
                   (Jsonb(m.thresholds().model_dump(mode="json")), Jsonb(m.metrics().model_dump(mode="json"))))
         for cid, case in m._cases.items():

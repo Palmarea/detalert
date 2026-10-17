@@ -9,8 +9,9 @@ from datetime import datetime
 from typing import Protocol
 
 from aml.api.schemas import (
-    AccountScore, AuditRecord, Band, CaseDetail, CaseList, FeedbackAck, FeedbackIn, LiveScore,
-    LiveTransaction, Mode, ModelMetrics, OperatingPoint, ScoreResponse, Thresholds,
+    AccountScore, Actor, AuditRecord, Band, CaseDetail, CaseList, FeedbackAck, FeedbackIn, FeedbackList,
+    LiveScore, LiveTransaction, Mode, ModelMetrics, OperatingPoint, Origin, Proposal, ProposalIn, ProposalList,
+    ProposalStatus, ScoreResponse, Thresholds,
 )
 
 BAND_ORDER = {Band.auto_close_eligible: 0, Band.review: 1, Band.high_priority: 2}
@@ -39,6 +40,17 @@ def check_agent_band(model_band: Band, fb: FeedbackIn) -> None:
         )
 
 
+class MissingCaseScore(ValueError):
+    pass
+
+
+def live_model_band(fb: FeedbackIn, th: Thresholds) -> Band:
+    """Banda del modelo para feedback de /score/live (no hay caso en aml.cases para leerla)."""
+    if fb.case_score is None:
+        raise MissingCaseScore("origin=score_live requiere case_score (el p_laundering de /score/live)")
+    return band_for(fb.case_score, operating_point(th, Mode.normal))
+
+
 class Backend(Protocol):
     name: str
     model_version: str
@@ -52,4 +64,8 @@ class Backend(Protocol):
     def metrics(self) -> ModelMetrics: ...
     def audit(self, txn_id: int) -> AuditRecord | None: ...
     def feedback(self, fb: FeedbackIn) -> FeedbackAck: ...
+    def list_feedback(self, actor: Actor | None, origin: Origin | None, since: datetime | None,
+                      limit: int, offset: int) -> FeedbackList: ...
+    def create_proposal(self, p: ProposalIn) -> Proposal: ...
+    def list_proposals(self, status: ProposalStatus | None) -> ProposalList: ...
     def score_live(self, txn: LiveTransaction, mode: Mode) -> LiveScore: ...
