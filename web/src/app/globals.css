@@ -426,6 +426,31 @@ pre{margin:0;background:var(--sunk);border-radius:8px;padding:14px;overflow-x:au
 .hour-col i{display:block}
 .hour small{font-size:10px;color:var(--muted);text-align:center}
 
+/* Equipo de agentes en vivo (AgentLive.tsx): 5 tarjetas arriba de la lista */
+.agent-live{margin:8px 8px 0;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--sunk)}
+.agent-live-title{margin:0 0 8px;font-size:12px;font-weight:600;color:var(--muted);overflow-wrap:anywhere}
+.agent-live-title .mono{font-family:var(--mono);color:var(--fg)}
+.agent-live-done{color:var(--ok)}
+.agent-live-row{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.agent-card{display:flex;flex-direction:column;gap:2px;min-width:0;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:11px;line-height:1.25}
+.agent-card b{font-size:12px;color:var(--fg)}
+.agent-card-sub{font-size:10px;color:var(--muted);overflow-wrap:anywhere}
+.agent-card-state{font-weight:600;font-variant-numeric:tabular-nums}
+.agent-card-detail{font-family:var(--mono);font-size:10px;overflow-wrap:anywhere}
+.agent-card-text{font-size:10px;color:var(--fg);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.agent-card[data-estado="espera"]{opacity:.6}
+.agent-card[data-estado="curso"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);animation:agentPulse 1.2s ease-in-out infinite}
+.agent-card[data-estado="fin"]{border-color:var(--ok);background:var(--ok-soft)}
+.agent-card[data-estado="fin"] .agent-card-state{color:var(--ok)}
+.agent-card[data-estado="omitido"]{border-style:dashed}
+.agent-card[data-estado="error"]{border-color:var(--bad);background:var(--bad-soft)}
+.agent-card[data-estado="error"] .agent-card-state{color:var(--bad)}
+@keyframes agentPulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 45%,transparent)}50%{box-shadow:0 0 0 4px transparent}}
+@media (prefers-reduced-motion:reduce){.agent-card[data-estado="curso"]{animation:none;border-width:2px}}
+
+/* Historia de la cuenta (AgentThinking.tsx) */
+.acct-story{margin:0 0 12px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:6px;font-weight:500}
+
 @media (max-width:900px){
   .dash-grid,.resolved-grid{grid-template-columns:minmax(0,1fr)}
 }

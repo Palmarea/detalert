@@ -22,6 +22,42 @@ const NOMBRE_PASO: Record<string, string> = {
 };
 const DOT: Record<string, string> = { fin: "b-ok", error: "b-bad", omitido: "b-info" };
 
+/* Historia de la cuenta (context.aml.historial_cuenta): solo los campos que vinieron. */
+const num = (v: unknown): string => (typeof v === "number" && Number.isFinite(v) ? Math.round(v).toLocaleString("es-PE") : "");
+const HISTORIAL: [string, string, (v: unknown) => string][] = [
+  ["operaciones_30d", "Operaciones (30 días)", num],
+  ["operaciones_7d", "Operaciones (7 días)", num],
+  ["monto_enviado_7d", "Monto enviado (7 días)", num],
+  ["promedio_30d", "Promedio por operación (30 días)", num],
+  ["efectivo_30d", "En efectivo (30 días)", num],
+  ["recibidas_7d", "Recibidas (7 días)", num],
+  ["horas_desde_ultima", "Desde la última", (v) => (num(v) ? `${num(v)} h` : "")],
+  ["contraparte_nueva", "Contraparte", (v) => (v === true || v === 1 ? "nueva" : v === false || v === 0 ? "conocida" : "")],
+];
+
+function HistoriaCuenta({ data }: { data: Rec }) {
+  const frase = str(data.frase, 220);
+  const filas = HISTORIAL.map(([k, label, fmt]) => [label, fmt(data[k])] as const).filter(([, v]) => v);
+  const cuenta = str(data.cuenta, 60);
+  if (!frase && !filas.length) return null;
+  return (
+    <>
+      <h3>Historia de la cuenta{cuenta ? <> · <span className="mono">{cuenta}</span></> : null}</h3>
+      {frase && <p className="acct-story">{frase}</p>}
+      {filas.length > 0 && (
+        <dl className="kv" style={{ marginBottom: 16 }}>
+          {filas.map(([label, v]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd className="num">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </>
+  );
+}
+
 export function AgentThinking({ context }: { context: unknown }) {
   const aml = rec(rec(context).aml);
   if (!Object.keys(aml).length) return null;
@@ -44,6 +80,8 @@ export function AgentThinking({ context }: { context: unknown }) {
         <h3>Cómo lo pensó el agente</h3>
         <span className="sample">Agente cognitivo AML</span>
       </div>
+
+      <HistoriaCuenta data={rec(aml.historial_cuenta)} />
 
       <dl className="kv">
         {bandaModelo && (

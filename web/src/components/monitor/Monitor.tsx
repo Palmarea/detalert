@@ -8,6 +8,7 @@ import { EventCard } from "./EventCard";
 import { EventDetail } from "./EventDetail";
 import { UserFoot } from "./UserFoot";
 import { SignalStrip } from "./Signals";
+import { AgentLive } from "./AgentLive";
 import type { EvidenceInput, ResolutionAction } from "@/lib/payments/types";
 
 interface Toast { action: ResolutionAction; id: string; name: string; evidence: boolean }
@@ -128,6 +129,7 @@ export function Monitor({ user, initialId }: { user: { name: string; role: strin
             {n} evento{n > 1 ? "s" : ""} nuevo{n > 1 ? "s" : ""} en pausa · mostrar
           </button>
         )}
+        <AgentLive />
         <div className="list" role="list">
           {items.length ? (
             items.map((e) => (
