@@ -3,10 +3,18 @@ import { Pool, type QueryResultRow } from "pg";
 
 const g = globalThis as unknown as { __pgPool?: Pool; __pgSchema?: Promise<void> };
 
-export const pool = (g.__pgPool ??= new Pool({
-  connectionString: process.env.DATABASE_URL ?? "postgres://monitor:monitor@localhost:5433/monitor",
-  max: 5,
-}));
+/* DATABASE_URL, o la que crea la integración de Neon en Vercel aunque tenga otro prefijo
+   (POSTGRES_URL, STORAGE_DATABASE_URL…). En local, sin ninguna, usa el Postgres de docker-compose. */
+function connectionString() {
+  const env = process.env;
+  const key = ["DATABASE_URL", "POSTGRES_URL"].find((k) => env[k]) ?? Object.keys(env).find((k) => /(^|_)(DATABASE_URL|POSTGRES_URL)$/.test(k) && env[k]);
+  if (key) return env[key]!;
+  if (process.env.NODE_ENV === "production") throw new Error("Falta DATABASE_URL: conecta la base Neon al proyecto en Vercel y vuelve a desplegar.");
+  return "postgres://monitor:monitor@localhost:5433/monitor";
+}
+
+/* Se crea en la primera consulta, no al importar: así el build no necesita la base. */
+export const pool = () => (g.__pgPool ??= new Pool({ connectionString: connectionString(), max: 5 }));
 
 /* events: cada caso recibido con su contexto. status = open hasta que un analista lo marca (archivado).
    resolutions: una por caso, con quién, cuándo y la nota.
@@ -50,7 +58,7 @@ create table if not exists notifications (
 `;
 
 export function ready() {
-  return (g.__pgSchema ??= pool.query(SCHEMA).then(
+  return (g.__pgSchema ??= pool().query(SCHEMA).then(
     () => undefined,
     (err) => {
       g.__pgSchema = undefined; // reintentar en la próxima llamada
@@ -61,5 +69,5 @@ export function ready() {
 
 export async function sql<T extends QueryResultRow>(text: string, params?: unknown[]) {
   await ready();
-  return (await pool.query<T>(text, params)).rows;
+  return (await pool().query<T>(text, params)).rows;
 }

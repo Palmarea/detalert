@@ -55,7 +55,7 @@ export async function saveEvents(items: { event: PaymentEvent; context?: Decisio
   await ready();
   let inserted = 0;
   for (const { event: e, context } of items) {
-    const res = await pool.query(
+    const res = await pool().query(
       `insert into events (id, type, created_at, data, context, urgency_reason)
        values ($1, $2, $3, $4, $5, $6) on conflict (id) do nothing`,
       [e.id, e.type, e.created_at, e.data, context ?? null, urgencyReason(e)],
@@ -88,7 +88,7 @@ type Actor = { email: string; name: string; role: string };
 /* Marca un caso: lo archiva, registra quién/cuándo/nota y deja la notificación en cola. Todo en una transacción. */
 export async function resolveEvent(id: string, action: ResolutionAction, note: string | null, by: Actor) {
   await ready();
-  const c = await pool.connect();
+  const c = await pool().connect();
   try {
     await c.query("begin");
     const cur = await c.query<{ status: string; data: PaymentEvent["data"]; type: string }>(
