@@ -5,9 +5,11 @@
      npm run feed                      # historial inicial de 15 + un evento cada 2.5–6.5 s
      npm run feed -- --no-history      # solo eventos nuevos
      npm run feed -- --once            # envía el historial y termina
-     npm run feed -- --url http://localhost:3000
+     npm run feed -- --url https://<app>.vercel.app --token <INGEST_TOKEN>
 
-   Lee INGEST_TOKEN de .env.local si existe (por defecto "dev-ingest-token"). */
+   Token: --token, o INGEST_TOKEN (del entorno o de .env.local), o "dev-ingest-token" en desarrollo.
+   Despliegues protegidos de Vercel (vistas previas): definir VERCEL_AUTOMATION_BYPASS_SECRET
+   con el secreto de "Protection Bypass for Automation" del proyecto. */
 import { fakeEvent, mockEventsSince } from "@/lib/payments/mock";
 import { explainDecision } from "@/lib/payments/decision";
 import { urgencyReason, typeInfo } from "@/lib/payments/catalog";
@@ -23,7 +25,8 @@ const flag = (f: string) => args.includes(f);
 const opt = (f: string) => (args.includes(f) ? args[args.indexOf(f) + 1] : undefined);
 
 const BASE = opt("--url") ?? process.env.FEED_URL ?? "http://localhost:3000";
-const TOKEN = process.env.INGEST_TOKEN || "dev-ingest-token";
+const TOKEN = opt("--token") ?? (process.env.INGEST_TOKEN || "dev-ingest-token");
+const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 
 const hhmmss = () => new Date().toLocaleTimeString("es-PE", { hour12: false });
 
@@ -36,7 +39,11 @@ function line(e: PaymentEvent) {
 async function send(events: PaymentEvent[]) {
   const res = await fetch(`${BASE}/api/ingest`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${TOKEN}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${TOKEN}`,
+      ...(BYPASS ? { "x-vercel-protection-bypass": BYPASS } : {}),
+    },
     body: JSON.stringify({ events: events.map((event) => ({ event, context: explainDecision(event) })) }),
   });
   const body = await res.json().catch(() => ({}));
