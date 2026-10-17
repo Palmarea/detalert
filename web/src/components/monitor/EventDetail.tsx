@@ -10,6 +10,7 @@ import type { EvidenceCategory, EvidenceIndicator, EvidenceInput, PaymentEvent, 
 import { AgentPanel, useAgentAudit } from "@agent/index";
 import { AlertIcon, ChevronIcon } from "@/components/icons";
 import { ScoreHero, SpectrumBar } from "./Signals";
+import { AgentThinking } from "./AgentThinking";
 
 interface Props {
   event: PaymentEvent;
@@ -137,6 +138,8 @@ export function EventDetail({ event: e, user, onBack, onResolve }: Props) {
           <p className="muted-note">Este evento llegó sin contexto: no hay decisión, factores ni reglas que mostrar.</p>
         </section>
       )}
+
+      <AgentThinking context={x} />
 
       <section className="section">
         <h3>Cliente</h3>
