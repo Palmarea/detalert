@@ -58,16 +58,20 @@ def bootstrap_gini(y, s, n_boot: int = 200, seed: int = 0) -> tuple[float, float
     return round(lo * 100, 2), round(hi * 100, 2)
 
 
-def calibration_bands(y, p, n_bins: int = 10) -> pd.DataFrame:
-    """Calibración por bandas de score (equivalente AML de las bandas de Vasicek).
+CALIBRATION_EDGES = [0, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 0.9, 1.0 + 1e-9]
 
-    Agrupa por cuantiles de la probabilidad predicha; para cada banda compara la
-    tasa observada con el IC 95% binomial (Clopper-Pearson) alrededor de la PD media
+
+def calibration_bands(y, p, edges=CALIBRATION_EDGES) -> pd.DataFrame:
+    """Calibración por bandas de probabilidad (equivalente AML de las bandas de Vasicek).
+
+    Bandas fijas en escala log de probabilidad (con 0,1% de eventos, los deciles
+    concentran todo en el último). Para cada banda compara la tasa observada con
+    el IC 95% binomial (Clopper-Pearson) alrededor de la probabilidad media
     predicha. `ok` = la tasa observada cae dentro de la banda.
     """
     df = pd.DataFrame({"y": np.asarray(y), "p": np.asarray(p)})
-    df["banda"] = pd.qcut(df.p.rank(method="first"), n_bins, labels=False) + 1
-    g = df.groupby("banda").agg(n=("y", "size"), eventos=("y", "sum"), p_media=("p", "mean"),
+    df["banda"] = pd.cut(df.p, edges, right=False, labels=[f"[{a:g}, {min(b, 1):g})" for a, b in zip(edges, edges[1:])])
+    g = df.groupby("banda", observed=True).agg(n=("y", "size"), eventos=("y", "sum"), p_media=("p", "mean"),
                                 p_min=("p", "min"), p_max=("p", "max"))
     g["tasa_obs"] = g.eventos / g.n
     # Banda: eventos esperados bajo p_media con IC binomial al 95%.

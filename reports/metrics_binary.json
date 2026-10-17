@@ -1,0 +1,73 @@
+{
+  "inicial": {
+    "train": {
+      "n": 4327896,
+      "positivos": 4373,
+      "gini": 100.0,
+      "ks": 99.97,
+      "pr_auc": 0.9979,
+      "recall@1%": 1.0,
+      "recall@5%": 1.0,
+      "precision@1000": 0.999
+    },
+    "test": {
+      "n": 1854813,
+      "positivos": 1875,
+      "gini": 99.94,
+      "ks": 98.16,
+      "pr_auc": 0.9655,
+      "recall@1%": 0.9893,
+      "recall@5%": 0.9995,
+      "precision@1000": 1.0
+    },
+    "oot": {
+      "n": 2456064,
+      "positivos": 2837,
+      "gini": 99.98,
+      "ks": 99.08,
+      "pr_auc": 0.9866,
+      "recall@1%": 0.9958,
+      "recall@5%": 1.0,
+      "precision@1000": 1.0
+    },
+    "gap_gini_train_oot": 0.02
+  },
+  "final": {
+    "train": {
+      "n": 4327896,
+      "positivos": 4373,
+      "gini": 99.99,
+      "ks": 99.53,
+      "pr_auc": 0.9823,
+      "recall@1%": 0.9995,
+      "recall@5%": 1.0,
+      "precision@1000": 1.0
+    },
+    "test": {
+      "n": 1854813,
+      "positivos": 1875,
+      "gini": 99.91,
+      "ks": 97.74,
+      "pr_auc": 0.95,
+      "recall@1%": 0.9851,
+      "recall@5%": 0.9995,
+      "precision@1000": 0.999
+    },
+    "oot": {
+      "n": 2456064,
+      "positivos": 2837,
+      "gini": 99.94,
+      "ks": 98.21,
+      "pr_auc": 0.9756,
+      "recall@1%": 0.9898,
+      "recall@5%": 0.9993,
+      "precision@1000": 1.0
+    },
+    "gap_gini_train_oot": 0.05
+  },
+  "oot_gini_ic95": [
+    99.92,
+    99.96
+  ],
+  "calibracion_bandas_ok": "3/7"
+}

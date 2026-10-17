@@ -169,6 +169,35 @@ Todas las ventanas usan `RANGE BETWEEN INTERVAL 'N' DAY PRECEDING AND INTERVAL 1
 
 **Hecho cuando:** `models/binary_v1`, `reports/metrics_binary.json` y `reports/model_comparison.md` (baseline vs. LightGBM inicial vs. final) existen.
 
+#### Resultados de las fases 1b y 2 (completadas)
+
+**Selección** (`python -m aml.select` → `reports/feature_selection.md`): quedaron **18 finalistas de 44**.
+- El PSI excluyó los contadores acumulados desde el inicio del dataset (`s_days_since_first` con PSI 3,17, `s_prev_cnt_all` 0,84, `r_prev_cnt_all` 0,29, `pair_prev_cnt` 0,28). Crecen con el calendario, así que el modelo habría aprendido "qué fecha es".
+- La correlación quitó duplicados como `log_amount`/`amount` y `cross_border`/`currency_mismatch`.
+- Boruta rechazó las categóricas de moneda y ubicación y algunos contadores redundantes.
+
+**Modelo** (`python -m aml.train_binary tune && python -m aml.train_binary fit` → `reports/model_comparison.md`):
+
+| Modelo | Features | Gini OOT | KS OOT | PR-AUC OOT | Recall @1% de alertas |
+|---|---|---|---|---|---|
+| Baseline de reglas (vigente) | 6 reglas | 44,7 | 41,0 | 0,004 | 9,4% |
+| LightGBM inicial | 44 | 99,98 | 99,1 | 0,987 | 99,6% |
+| **LightGBM final** (Optuna, 30 trials) | 18 | **99,94** (IC 99,92–99,96) | 98,2 | 0,976 | 99,0% |
+
+- **Gap de Gini train − OOT: 0,05 pts** (criterio ≤ 15).
+- **Recall por tipología con el umbral del 1%:** ≥ 94,7% en todas. La más difícil es Smurfing con 94,7%; la siguen Cash_Withdrawal (97,5%) y Scatter-Gather (97,7%).
+- **El baseline**, para atrapar el 65% del lavado, alerta el 24% de todas las transacciones.
+- **Calibración de Platt sobre test:** no usé la isotónica porque daba p = 0 exacto a 2,39M de transacciones, 8 de ellas de lavado. En OOT pasan 3 de 7 bandas, **todas las bajas** (las que deciden el auto-cierre). En las bandas medias sobreestima levemente, que es la dirección conservadora.
+- **Ablación (¿hay fuga?):**
+
+| Features quitadas | Gini OOT | PR-AUC OOT |
+|---|---|---|
+| `is_new_counterparty` | 99,4 | 0,87 |
+| + `pair_cnt_7d` | 99,0 | 0,84 |
+| + `r_hours_since_prev` y `s_hours_since_prev` | 98,3 | 0,78 |
+
+  No hay una sola variable que filtre la respuesta. La separabilidad es propia de SAML-D: el 77% del lavado va a una contraparte nueva, contra el 5% de lo normal. **Va como limitación en la model card**, porque en datos reales hay que esperar métricas bastante menores.
+
 ### Fase 3 — Casos y puntos de operación (P0)
 
 - `cases.py`: las transacciones sobre el umbral de alerta se agrupan por `sender_account` en ventanas de 7 días.
@@ -183,6 +212,37 @@ Todas las ventanas usan `RANGE BETWEEN INTERVAL 'N' DAY PRECEDING AND INTERVAL 1
 - Guardar en `models/thresholds_v1.json`.
 
 **Hecho cuando:** la tabla de puntos de operación y la curva están en `reports/` y se calcularon sobre valid, no sobre test.
+
+#### Resultados de la fase 3 (+ fases 4 y 5 base) — completadas
+
+El pipeline completo corre en ~1 minuto:
+
+```
+python -m aml.train_family && python -m aml.score_batch && python -m aml.cases && python -m aml.thresholds && python -m aml.export
+```
+
+- **Umbral de alerta:** p ≥ 0,000463, que da 99% de recall de transacciones en test. En OOT se alerta el 1,2% (29.642 transacciones).
+- **Casos:** alertas del mismo emisor dentro de 7 días; queda 1,16 alertas por caso. En OOT son 25.601 casos, 1.680 con lavado.
+- **Puntos de operación** (elegidos en test, reportados en OOT, 84 días):
+
+| Modo | Auto-cierre | Lavado que se escapa | Cola (casos/día) | Alta prioridad (precisión) |
+|---|---|---|---|---|
+| normal | 61,2% | 0,18% (3 de 1.680) | 119 | 20/día (99,5%) |
+| capacidad reducida (50%) | 79,5% | 0,42% (7) | 63 | 20/día |
+| sin analista | 61,2% | 0,18% | 0 (119/día en retención preventiva) | — |
+
+- **Funnel OOT** (positivos = transacciones de lavado): 2,46M transacciones → 29.642 alertas (pierde 0,95%) → 25.601 casos → 9.944 escalados (pierde 0,11% más) → 1.650 de alta prioridad.
+- **Familias de los casos de lavado auto-cerrados en modo normal:** layering 2 y structuring 1; behavioural, cash y concentration 0.
+- **Clasificador de familia** (`reports/family_model.md`): F1 macro 0,76 y accuracy 81% en OOT. Concentration se confunde con layering. El 5% va a `generic`.
+- **Reason codes:** top 3 contribuciones SHAP positivas, con texto en español (`aml/explain.py`).
+- **Export a Postgres:** 25.601 casos y 29.642 transacciones (66 MB, 8 s). **No incluye etiquetas reales.** Probado contra `aml_dev` local con los tests de contrato.
+
+#### Scoring en vivo (`POST /score/live`) — completado
+
+- **Predictor LightGBM en Python puro** (`aml/api/predictor.py`): coincide con LightGBM en 10⁻¹⁶ (7.921 filas, con NaN). Sin lightgbm, numpy ni scipy en Vercel. El modelo compacto (3,8 MB) vive en `aml.meta['live_model']`.
+- **Features en vivo** (`aml/api/live.py`): una consulta indexada sobre `aml.history` (1,56M transacciones desde el 1 de julio de 2023), más `aml.pairs_before` y `aml.accounts_before` para las features "desde siempre".
+- **Validación:** idéntico al batch en 400 transacciones de agosto (18 de 18 features, Δp ≤ 7e-16, familia 400 de 400).
+- **Carga:** `python -m aml.export_live`, o `--model-only` tras reentrenar. Supabase queda en 389 MB de 500.
 
 ### Fase 4 — Clasificador de familia (P1)
 
@@ -228,6 +288,16 @@ Reglas del contrato que hay que acordar con el equipo:
 - **Fallback:** si el modelo no carga, `/score` responde con reglas simples (monto alto, cross-border, velocidad) y `"model_version": "rules_fallback"`.
 
 `schemas.py` se comparte en cuanto esté listo, aunque los endpoints devuelvan datos falsos, para que el equipo empiece a integrar desde el principio.
+
+#### Estado de la fase 6 (base completada)
+
+**Arquitectura:** el batch corre en local (DuckDB + LightGBM) y exporta a **Postgres**; la **API en Vercel** solo lee y escribe Postgres, sin cargar el modelo. La guía para el equipo está en `docs/API.md` y el contrato en `docs/openapi.json`.
+
+- Los backends `mock` y `postgres` se eligen con `AML_BACKEND`. La banda se deriva del score con los umbrales del `mode`, no se guarda.
+- La regla "el agente no baja la banda" se aplica en `POST /feedback` (responde 422).
+- Los 10 tests de contrato pasan con los dos backends (Postgres local `aml_dev` cargado con `seed_mock`).
+- Las dependencias de Vercel ocupan 46 MB (`requirements.txt`). El stack de ML está en `requirements-ml.txt` (`pip install -r requirements-ml.txt`).
+- **Pendiente:** `aml/export.py`, que llena `aml.cases`, `aml.txn_scores` y `aml.meta` con data real. Depende de la fase 3 (casos y puntos de operación) y de la fase 5 (reason codes).
 
 ### Fase 7 — Feedback y reentrenamiento simulado (P2)
 

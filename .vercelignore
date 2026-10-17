@@ -1,0 +1,8 @@
+.venv
+data
+models
+reports
+notebooks
+tests
+sql
+*.xlsx

@@ -2,7 +2,7 @@
 
 Muestra de entrenamiento: todos los positivos de train + NEG_RATE de los negativos
 (determinista por txn_id). El submuestreo cambia la escala de probabilidad; la
-calibración isotónica sobre test la corrige.
+calibración de Platt sobre test la corrige.
 
 Uso:
     python -m aml.train_binary tune      # Optuna -> models/binary_params.json
@@ -18,7 +18,7 @@ import lightgbm as lgb
 import numpy as np
 import optuna
 import pandas as pd
-from sklearn.isotonic import IsotonicRegression
+from aml.calibration import PlattCalibrator
 
 from aml.config import MODELS_DIR, REPORTS_DIR, TYPOLOGY_TO_FAMILY
 from aml.data import load
@@ -117,9 +117,9 @@ def fit() -> None:
     model = lgb.train(best["params"], dataset(tr, feats_sel), num_boost_round=best["num_boost_round"])
     m_final = evaluate("final", model, feats_sel, full)
 
-    # 3. Calibración isotónica sobre test (probabilidad real en la población completa).
+    # 3. Calibración de Platt sobre test (probabilidad real en la población completa).
     raw = {s: model.predict(df[feats_sel]) for s, df in full.items()}
-    iso = IsotonicRegression(out_of_bounds="clip", y_min=0, y_max=1).fit(raw["test"], full["test"].is_laundering)
+    iso = PlattCalibrator().fit(raw["test"], full["test"].is_laundering)
     oot = full["oot"].assign(score_raw=raw["oot"], p=iso.predict(raw["oot"]))
     bands = calibration_bands(oot.is_laundering, oot.p)
 
@@ -150,7 +150,9 @@ def fit() -> None:
     smp = oot.sample(200_000, random_state=SEED)
     base_p = iso.predict(model.predict(smp[feats_sel]))
     sens = []
-    for f in [f for f in imp.index if f not in CATEGORICAL_FEATURES][:5]:
+    # Solo continuas: estresar ±σ una binaria (0/1) no tiene interpretación.
+    continuous = [f for f in imp.index if f not in CATEGORICAL_FEATURES and full["train"][f].nunique() > 2]
+    for f in continuous[:5]:
         sd = full["train"][f].std()
         row = {"feature": f}
         for k in (-2, -1, 1, 2):
